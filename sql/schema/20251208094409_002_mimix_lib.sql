@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 CREATE TABLE mimix_lib (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    lib TEXT NOT NULL,
+    lib TEXT NOT NULL
 );
 -- +goose StatementEnd
 
