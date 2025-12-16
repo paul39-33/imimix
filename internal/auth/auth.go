@@ -82,4 +82,41 @@ func ValidateJWT(tokenString string, tokenSecret string) (uuid.UUID, error) {
 	return id, nil
 }
 
-func GetBearerToken()
+func GetBearerToken(headers http.Header) (string, error) {
+	//get auth header
+	authHeader := headers.Get("Authorization")
+	//if no auth header
+	if authHeader == "" {
+		return "", fmt.Errorf("authorization header missing")
+	}
+	//take the TOKEN_STRING part
+	auth_headers := strings.Fields(authHeader)
+	token_string := auth_headers[1]
+	return token_string, nil
+}
+
+func MakeRefreshToken() (string, error) {
+	//generate random key and token
+	key := make([]byte, 32)
+	_, err := rand.Read(key)
+	if err != nil {
+		log.Printf("err generating random key for refresh token: %v", err)
+		return "", err
+	}
+
+	key_string := hex.EncodeToString(key)
+	return key_string, nil
+}
+
+func GetAPIKey (headers http.Header) (string, error) {
+	//get auth header
+	auth_header := headers.Get("Authorization")
+	//if no auth header
+	if auth_header == "" {
+		return "", fmt.Errorf("authorization header missing")
+	}
+	//only take the API_KEY part
+	auth_headers := strings.Fields(auth_header)
+	api_key := auth_headers[1]
+	return api_key, nil
+}	
