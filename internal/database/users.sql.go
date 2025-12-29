@@ -8,46 +8,113 @@ package database
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, pass)
-VALUES ($1, $2)
-RETURNING email, created_at, updated_at
+INSERT INTO users (username, hashed_password, job)
+VALUES ($1, $2, $3)
+RETURNING username, job, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	Email string
-	Pass  string
+	Username       string
+	HashedPassword string
+	Job            UserJob
 }
 
 type CreateUserRow struct {
-	Email     string
+	Username  string
+	Job       UserJob
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.Pass)
+	row := q.db.QueryRowContext(ctx, createUser, arg.Username, arg.HashedPassword, arg.Job)
 	var i CreateUserRow
-	err := row.Scan(&i.Email, &i.CreatedAt, &i.UpdatedAt)
+	err := row.Scan(
+		&i.Username,
+		&i.Job,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, job, created_at, updated_at
+FROM users
+WHERE id = $1
+`
+
+type GetUserByIDRow struct {
+	ID        uuid.UUID
+	Username  string
+	Job       UserJob
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i GetUserByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Job,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, job, hashed_password, created_at, updated_at
+FROM users
+WHERE username = $1
+`
+
+type GetUserByUsernameRow struct {
+	ID             uuid.UUID
+	Username       string
+	Job            UserJob
+	HashedPassword string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i GetUserByUsernameRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Job,
+		&i.HashedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
 const userLogin = `-- name: UserLogin :one
-SELECT email, created_at, updated_at, pass
+SELECT id, username, created_at, updated_at, hashed_password, job
 FROM users
-WHERE email = $1
+WHERE username = $1
 `
 
-func (q *Queries) UserLogin(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRowContext(ctx, userLogin, email)
+func (q *Queries) UserLogin(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, userLogin, username)
 	var i User
 	err := row.Scan(
-		&i.Email,
+		&i.ID,
+		&i.Username,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Pass,
+		&i.HashedPassword,
+		&i.Job,
 	)
 	return i, err
 }

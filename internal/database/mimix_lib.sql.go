@@ -7,27 +7,87 @@ package database
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
-const addLib = `-- name: AddLib :one
+const createMimixLib = `-- name: CreateMimixLib :one
 INSERT INTO mimix_lib (lib)
 VALUES ($1)
 RETURNING id, lib
 `
 
-func (q *Queries) AddLib(ctx context.Context, lib string) (MimixLib, error) {
-	row := q.db.QueryRowContext(ctx, addLib, lib)
+func (q *Queries) CreateMimixLib(ctx context.Context, lib string) (MimixLib, error) {
+	row := q.db.QueryRowContext(ctx, createMimixLib, lib)
 	var i MimixLib
 	err := row.Scan(&i.ID, &i.Lib)
 	return i, err
 }
 
-const deleteLib = `-- name: DeleteLib :exec
-DELETE FROM mimix_lib
+const getMimixLibByName = `-- name: GetMimixLibByName :one
+SELECT id, lib
+FROM mimix_lib
 WHERE lib = $1
 `
 
-func (q *Queries) DeleteLib(ctx context.Context, lib string) error {
-	_, err := q.db.ExecContext(ctx, deleteLib, lib)
+func (q *Queries) GetMimixLibByName(ctx context.Context, lib string) (MimixLib, error) {
+	row := q.db.QueryRowContext(ctx, getMimixLibByName, lib)
+	var i MimixLib
+	err := row.Scan(&i.ID, &i.Lib)
+	return i, err
+}
+
+const getObjByLib = `-- name: GetObjByLib :many
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer
+FROM mimix_obj
+WHERE lib = $1
+`
+
+func (q *Queries) GetObjByLib(ctx context.Context, lib string) ([]MimixObj, error) {
+	rows, err := q.db.QueryContext(ctx, getObjByLib, lib)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MimixObj
+	for rows.Next() {
+		var i MimixObj
+		if err := rows.Scan(
+			&i.ID,
+			&i.Obj,
+			&i.ObjType,
+			&i.PromoteDate,
+			&i.Lib,
+			&i.LibID,
+			&i.ObjVer,
+			&i.MimixStatus,
+			&i.Developer,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateObjLibID = `-- name: UpdateObjLibID :exec
+UPDATE mimix_obj
+SET lib_id = $2
+WHERE id = $1
+`
+
+type UpdateObjLibIDParams struct {
+	ID    uuid.UUID
+	LibID uuid.UUID
+}
+
+func (q *Queries) UpdateObjLibID(ctx context.Context, arg UpdateObjLibIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateObjLibID, arg.ID, arg.LibID)
 	return err
 }

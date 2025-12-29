@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/paul39-33/imimix/internal/database"
 )
 
 func main() {
@@ -15,6 +16,7 @@ func main() {
 	godotenv.Load()
 	//secret := os.Getenv("SECRET_KEY")
 	db_url := os.Getenv("DATABASE_URL")
+	secret := os.Getenv("SECRET_KEY")
 	db, err := sql.Open("postgres", db_url)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -38,11 +40,16 @@ func main() {
 
 	api := r.Group("/api")
 	{
-		api.POST("/login", apiCfg.handleUserLogin)
-		api.POST("/add_mimix_lib", apiCfg.handleAddLib)
-		api.POST("/add_mimix_obj", apiCfg.handleAddObj)
-		api.DELETE("/delete_mimix_lib/:libid", apiCfg.handleDeleteLib)
-		api.DELETE("/delete_mimix_obj/:objid", apiCfg.handleDeleteObj)
+		api.POST("/create_user", apiCfg.CreateUser)
+		api.POST("/login", apiCfg.UserLogin)
+		api.POST("/add_mimix_obj", apiCfg.CreateObj)
+		api.POST("/create_obj_req", apiCfg.CreateObjReq)
+		api.DELETE("/delete_mimix_obj/:objid", apiCfg.RemoveObj)
+		api.DELETE("/delete_obj_req/:reqid", apiCfg.RemoveMimixObjReq)
+		api.GET("/get_mimix_obj_by_name/:name", apiCfg.GetObjByName)
+		api.GET("/get_mimix_obj/:lib", apiCfg.GetObjByLib)
+		api.GET("/get_mimix_obj_by_dev/:dev", apiCfg.GetObjByDev)
+		api.PATCH("/update_mimix_obj_status/:obj", apiCfg.UpdateObjStatus)
 	}
 
 	//start server on port 8080

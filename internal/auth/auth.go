@@ -1,8 +1,12 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -108,7 +112,7 @@ func MakeRefreshToken() (string, error) {
 	return key_string, nil
 }
 
-func GetAPIKey (headers http.Header) (string, error) {
+func GetAPIKey(headers http.Header) (string, error) {
 	//get auth header
 	auth_header := headers.Get("Authorization")
 	//if no auth header
@@ -119,4 +123,4 @@ func GetAPIKey (headers http.Header) (string, error) {
 	auth_headers := strings.Fields(auth_header)
 	api_key := auth_headers[1]
 	return api_key, nil
-}	
+}

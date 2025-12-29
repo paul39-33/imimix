@@ -5,10 +5,57 @@
 package database
 
 import (
+	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type UserJob string
+
+const (
+	UserJobCmt  UserJob = "cmt"
+	UserJobDev  UserJob = "dev"
+	UserJobDc   UserJob = "dc"
+	UserJobUser UserJob = "user"
+)
+
+func (e *UserJob) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserJob(s)
+	case string:
+		*e = UserJob(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserJob: %T", src)
+	}
+	return nil
+}
+
+type NullUserJob struct {
+	UserJob UserJob
+	Valid   bool // Valid is true if UserJob is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserJob) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserJob, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserJob.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserJob) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserJob), nil
+}
 
 type MimixLib struct {
 	ID  uuid.UUID
@@ -19,16 +66,32 @@ type MimixObj struct {
 	ID          uuid.UUID
 	Obj         string
 	ObjType     string
-	PromoteDate time.Time
+	PromoteDate sql.NullTime
 	Lib         string
 	LibID       uuid.UUID
 	ObjVer      string
 	MimixStatus string
+	Developer   string
+}
+
+type MimixObjReq struct {
+	ID          uuid.UUID
+	ObjName     string
+	Requester   string
+	ReqStatus   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Lib         string
+	ObjVer      string
+	ObjType     string
+	PromoteDate time.Time
 }
 
 type User struct {
-	Email     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Pass      string
+	ID             uuid.UUID
+	Username       string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	HashedPassword string
+	Job            UserJob
 }
