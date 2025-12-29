@@ -470,11 +470,20 @@ func (cfg *apiConfig) RemoveObj(c *gin.Context) {
 		return
 	}
 
-	//get obj name input and clean it
-	objName := c.Param("obj")
-	objName = strings.ToLower(strings.TrimSpace(objName))
+	//get obj id input and clean it
+	objID := c.Param("obj")
+	objID = strings.ToLower(strings.TrimSpace(objID))
+	//parse id to uuid
+	objUUID, err := uuid.Parse(objID)
+	if err != nil {
+		log.Printf("error parsing obj id: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid obj id",
+		})
+		return
+	}
 
-	err = cfg.dbQueries.RemoveObj(c.Request.Context(), objName)
+	err = cfg.dbQueries.RemoveObjByID(c.Request.Context(), objUUID)
 	//if no obj is found
 	if errors.Is(err, sql.ErrNoRows) {
 		log.Printf("No matching obj found: %v", err)
@@ -492,8 +501,8 @@ func (cfg *apiConfig) RemoveObj(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":  "mimix object deleted successfully",
-		"obj_name": objName,
+		"message": "mimix object deleted successfully",
+		"obj_id":  objUUID,
 	})
 }
 

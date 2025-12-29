@@ -129,13 +129,13 @@ func (q *Queries) GetObjByName(ctx context.Context, obj string) (MimixObj, error
 	return i, err
 }
 
-const removeObj = `-- name: RemoveObj :exec
+const removeObjByID = `-- name: RemoveObjByID :exec
 DELETE FROM mimix_obj
-WHERE obj = $1
+WHERE id = $1
 `
 
-func (q *Queries) RemoveObj(ctx context.Context, obj string) error {
-	_, err := q.db.ExecContext(ctx, removeObj, obj)
+func (q *Queries) RemoveObjByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, removeObjByID, id)
 	return err
 }
 

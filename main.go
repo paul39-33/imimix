@@ -44,7 +44,7 @@ func main() {
 		api.POST("/login", apiCfg.UserLogin)
 		api.POST("/add_mimix_obj", apiCfg.CreateObj)
 		api.POST("/create_obj_req", apiCfg.CreateObjReq)
-		api.DELETE("/delete_mimix_obj/:objid", apiCfg.RemoveObj)
+		api.DELETE("/delete_mimix_obj/:obj", apiCfg.RemoveObj)
 		api.DELETE("/delete_obj_req/:reqid", apiCfg.RemoveMimixObjReq)
 		api.GET("/get_mimix_obj_by_name/:name", apiCfg.GetObjByName)
 		api.GET("/get_mimix_obj/:lib", apiCfg.GetObjByLib)
