@@ -50,6 +50,10 @@ func main() {
 		api.GET("/get_mimix_obj/:lib", apiCfg.GetObjByLib)
 		api.GET("/get_mimix_obj_by_dev/:dev", apiCfg.GetObjByDev)
 		api.PATCH("/update_mimix_obj_status/:obj", apiCfg.UpdateObjStatus)
+
+		api.PATCH("/update_mimix_obj_info/:id", apiCfg.UpdateObjInfo) // handler expects :id
+		api.POST("/add_obj_to_obj_req/:id", apiCfg.ObjtoObjReq)       // handler expects :id
+		api.POST("/convert_obj_req/:reqid", apiCfg.ObjReqToObj)       // handler expects :reqid
 	}
 
 	//start server on port 8080

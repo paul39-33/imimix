@@ -38,7 +38,7 @@ func (q *Queries) GetMimixLibByName(ctx context.Context, lib string) (MimixLib, 
 }
 
 const getObjByLib = `-- name: GetObjByLib :many
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
 FROM mimix_obj
 WHERE lib = $1
 `
@@ -62,6 +62,7 @@ func (q *Queries) GetObjByLib(ctx context.Context, lib string) ([]MimixObj, erro
 			&i.ObjVer,
 			&i.MimixStatus,
 			&i.Developer,
+			&i.Keterangan,
 		); err != nil {
 			return nil, err
 		}

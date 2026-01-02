@@ -13,6 +13,93 @@ import (
 	"github.com/google/uuid"
 )
 
+type MimixStatus string
+
+const (
+	MimixStatusUnset            MimixStatus = "unset"
+	MimixStatusDone             MimixStatus = "done"
+	MimixStatusDaftarkan        MimixStatus = "daftarkan"
+	MimixStatusTidakperludaftar MimixStatus = "tidak perlu daftar"
+	MimixStatusOnprogress       MimixStatus = "on progress"
+)
+
+func (e *MimixStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MimixStatus(s)
+	case string:
+		*e = MimixStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MimixStatus: %T", src)
+	}
+	return nil
+}
+
+type NullMimixStatus struct {
+	MimixStatus MimixStatus
+	Valid       bool // Valid is true if MimixStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMimixStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.MimixStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MimixStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMimixStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MimixStatus), nil
+}
+
+type PromoteStatus string
+
+const (
+	PromoteStatusInProgress PromoteStatus = "in_progress"
+	PromoteStatusDeployed   PromoteStatus = "deployed"
+)
+
+func (e *PromoteStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PromoteStatus(s)
+	case string:
+		*e = PromoteStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PromoteStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPromoteStatus struct {
+	PromoteStatus PromoteStatus
+	Valid         bool // Valid is true if PromoteStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPromoteStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PromoteStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PromoteStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPromoteStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PromoteStatus), nil
+}
+
 type UserJob string
 
 const (
@@ -70,21 +157,25 @@ type MimixObj struct {
 	Lib         string
 	LibID       uuid.UUID
 	ObjVer      string
-	MimixStatus string
+	MimixStatus MimixStatus
 	Developer   string
+	Keterangan  sql.NullString
 }
 
 type MimixObjReq struct {
-	ID          uuid.UUID
-	ObjName     string
-	Requester   string
-	ReqStatus   string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	Lib         string
-	ObjVer      string
-	ObjType     string
-	PromoteDate time.Time
+	ID            uuid.UUID
+	ObjName       string
+	Requester     string
+	ReqStatus     string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Lib           string
+	ObjVer        string
+	ObjType       string
+	PromoteDate   time.Time
+	Developer     sql.NullString
+	PromoteStatus NullPromoteStatus
+	SourceObjID   uuid.NullUUID
 }
 
 type User struct {

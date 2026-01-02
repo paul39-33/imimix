@@ -25,7 +25,7 @@ type AddObjParams struct {
 	ObjVer      string
 	Lib         string
 	LibID       uuid.UUID
-	MimixStatus string
+	MimixStatus MimixStatus
 	Developer   string
 }
 
@@ -37,7 +37,7 @@ type AddObjRow struct {
 	ObjVer      string
 	Lib         string
 	LibID       uuid.UUID
-	MimixStatus string
+	MimixStatus MimixStatus
 	Developer   string
 }
 
@@ -67,8 +67,71 @@ func (q *Queries) AddObj(ctx context.Context, arg AddObjParams) (AddObjRow, erro
 	return i, err
 }
 
+const addObjToObjReq = `-- name: AddObjToObjReq :exec
+INSERT INTO mimix_obj_req (
+    obj_name,
+    requester,
+    req_status,
+    created_at,
+    updated_at,
+    lib,
+    obj_ver,
+    obj_type,
+    promote_date,
+    source_obj_id
+)
+SELECT
+    o.obj_name,
+    $2,
+    $3,
+    NOW(),
+    NOW(),
+    o.lib,
+    o.obj_ver,
+    o.obj_type,
+    o.promote_date,
+    o.id          -- source obj id
+FROM mimix_obj AS o
+WHERE o.id = $1
+`
+
+type AddObjToObjReqParams struct {
+	ID        uuid.UUID
+	Requester string
+	ReqStatus string
+}
+
+func (q *Queries) AddObjToObjReq(ctx context.Context, arg AddObjToObjReqParams) error {
+	_, err := q.db.ExecContext(ctx, addObjToObjReq, arg.ID, arg.Requester, arg.ReqStatus)
+	return err
+}
+
+const completeObjMimixStatus = `-- name: CompleteObjMimixStatus :exec
+UPDATE mimix_obj
+SET mimix_status = 'done'
+WHERE id = $1
+`
+
+func (q *Queries) CompleteObjMimixStatus(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, completeObjMimixStatus, id)
+	return err
+}
+
+const getMimixStatusByID = `-- name: GetMimixStatusByID :one
+SELECT mimix_status
+FROM mimix_obj
+WHERE id = $1
+`
+
+func (q *Queries) GetMimixStatusByID(ctx context.Context, id uuid.UUID) (MimixStatus, error) {
+	row := q.db.QueryRowContext(ctx, getMimixStatusByID, id)
+	var mimix_status MimixStatus
+	err := row.Scan(&mimix_status)
+	return mimix_status, err
+}
+
 const getObjByDev = `-- name: GetObjByDev :many
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
 FROM mimix_obj
 WHERE developer = $1
 `
@@ -92,6 +155,7 @@ func (q *Queries) GetObjByDev(ctx context.Context, developer string) ([]MimixObj
 			&i.ObjVer,
 			&i.MimixStatus,
 			&i.Developer,
+			&i.Keterangan,
 		); err != nil {
 			return nil, err
 		}
@@ -106,8 +170,32 @@ func (q *Queries) GetObjByDev(ctx context.Context, developer string) ([]MimixObj
 	return items, nil
 }
 
+const getObjByID = `-- name: GetObjByID :one
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
+FROM mimix_obj
+WHERE id = $1
+`
+
+func (q *Queries) GetObjByID(ctx context.Context, id uuid.UUID) (MimixObj, error) {
+	row := q.db.QueryRowContext(ctx, getObjByID, id)
+	var i MimixObj
+	err := row.Scan(
+		&i.ID,
+		&i.Obj,
+		&i.ObjType,
+		&i.PromoteDate,
+		&i.Lib,
+		&i.LibID,
+		&i.ObjVer,
+		&i.MimixStatus,
+		&i.Developer,
+		&i.Keterangan,
+	)
+	return i, err
+}
+
 const getObjByName = `-- name: GetObjByName :one
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
 FROM mimix_obj
 WHERE obj = $1
 `
@@ -125,6 +213,7 @@ func (q *Queries) GetObjByName(ctx context.Context, obj string) (MimixObj, error
 		&i.ObjVer,
 		&i.MimixStatus,
 		&i.Developer,
+		&i.Keterangan,
 	)
 	return i, err
 }
@@ -139,6 +228,77 @@ func (q *Queries) RemoveObjByID(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const updateMimixStatus = `-- name: UpdateMimixStatus :exec
+UPDATE mimix_obj
+SET mimix_status = $2
+WHERE id = $1
+`
+
+type UpdateMimixStatusParams struct {
+	ID          uuid.UUID
+	MimixStatus MimixStatus
+}
+
+func (q *Queries) UpdateMimixStatus(ctx context.Context, arg UpdateMimixStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateMimixStatus, arg.ID, arg.MimixStatus)
+	return err
+}
+
+const updateObjInfo = `-- name: UpdateObjInfo :one
+UPDATE mimix_obj
+SET
+    obj           = $2,
+    lib           = $3,
+    obj_type      = $4,
+    obj_ver       = $5,
+    promote_date  = $6,
+    mimix_status  = $7,
+    developer     = $8,
+    keterangan    = $9
+WHERE id = $1
+RETURNING id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
+`
+
+type UpdateObjInfoParams struct {
+	ID          uuid.UUID
+	Obj         string
+	Lib         string
+	ObjType     string
+	ObjVer      string
+	PromoteDate sql.NullTime
+	MimixStatus MimixStatus
+	Developer   string
+	Keterangan  sql.NullString
+}
+
+func (q *Queries) UpdateObjInfo(ctx context.Context, arg UpdateObjInfoParams) (MimixObj, error) {
+	row := q.db.QueryRowContext(ctx, updateObjInfo,
+		arg.ID,
+		arg.Obj,
+		arg.Lib,
+		arg.ObjType,
+		arg.ObjVer,
+		arg.PromoteDate,
+		arg.MimixStatus,
+		arg.Developer,
+		arg.Keterangan,
+	)
+	var i MimixObj
+	err := row.Scan(
+		&i.ID,
+		&i.Obj,
+		&i.ObjType,
+		&i.PromoteDate,
+		&i.Lib,
+		&i.LibID,
+		&i.ObjVer,
+		&i.MimixStatus,
+		&i.Developer,
+		&i.Keterangan,
+	)
+	return i, err
+}
+
 const updateObjStatus = `-- name: UpdateObjStatus :exec
 UPDATE mimix_obj
 SET mimix_status = $2
@@ -148,7 +308,7 @@ RETURNING obj, mimix_status
 
 type UpdateObjStatusParams struct {
 	Obj         string
-	MimixStatus string
+	MimixStatus MimixStatus
 }
 
 func (q *Queries) UpdateObjStatus(ctx context.Context, arg UpdateObjStatusParams) error {

@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const completeMimixObjReq = `-- name: CompleteMimixObjReq :exec
+UPDATE mimix_obj_req
+SET req_status = 'completed', updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) CompleteMimixObjReq(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, completeMimixObjReq, id)
+	return err
+}
+
 const createMimixObjReq = `-- name: CreateMimixObjReq :one
 INSERT INTO mimix_obj_req (
     obj_name,
@@ -79,7 +90,7 @@ func (q *Queries) CreateMimixObjReq(ctx context.Context, arg CreateMimixObjReqPa
 }
 
 const getMimixObjReq = `-- name: GetMimixObjReq :many
-SELECT id, obj_name, requester, req_status, created_at, updated_at, lib, obj_ver, obj_type, promote_date
+SELECT id, obj_name, requester, req_status, created_at, updated_at, lib, obj_ver, obj_type, promote_date, developer, promote_status, source_obj_id
 FROM mimix_obj_req
 `
 
@@ -103,6 +114,9 @@ func (q *Queries) GetMimixObjReq(ctx context.Context) ([]MimixObjReq, error) {
 			&i.ObjVer,
 			&i.ObjType,
 			&i.PromoteDate,
+			&i.Developer,
+			&i.PromoteStatus,
+			&i.SourceObjID,
 		); err != nil {
 			return nil, err
 		}
@@ -118,7 +132,7 @@ func (q *Queries) GetMimixObjReq(ctx context.Context) ([]MimixObjReq, error) {
 }
 
 const getMimixObjReqByID = `-- name: GetMimixObjReqByID :one
-SELECT id, obj_name, requester, req_status, created_at, updated_at, lib, obj_ver, obj_type, promote_date
+SELECT id, obj_name, requester, req_status, created_at, updated_at, lib, obj_ver, obj_type, promote_date, developer, promote_status, source_obj_id
 FROM mimix_obj_req
 WHERE id = $1
 `
@@ -137,12 +151,15 @@ func (q *Queries) GetMimixObjReqByID(ctx context.Context, id uuid.UUID) (MimixOb
 		&i.ObjVer,
 		&i.ObjType,
 		&i.PromoteDate,
+		&i.Developer,
+		&i.PromoteStatus,
+		&i.SourceObjID,
 	)
 	return i, err
 }
 
 const getMimixObjReqByRequester = `-- name: GetMimixObjReqByRequester :many
-SELECT id, obj_name, requester, req_status, created_at, updated_at, lib, obj_ver, obj_type, promote_date
+SELECT id, obj_name, requester, req_status, created_at, updated_at, lib, obj_ver, obj_type, promote_date, developer, promote_status, source_obj_id
 FROM mimix_obj_req
 WHERE requester = $1
 `
@@ -167,6 +184,9 @@ func (q *Queries) GetMimixObjReqByRequester(ctx context.Context, requester strin
 			&i.ObjVer,
 			&i.ObjType,
 			&i.PromoteDate,
+			&i.Developer,
+			&i.PromoteStatus,
+			&i.SourceObjID,
 		); err != nil {
 			return nil, err
 		}

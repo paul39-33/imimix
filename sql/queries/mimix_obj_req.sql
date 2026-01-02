@@ -37,3 +37,8 @@ RETURNING obj_name;
 SELECT *
 FROM mimix_obj_req
 WHERE id = $1;
+
+-- name: CompleteMimixObjReq :exec
+UPDATE mimix_obj_req
+SET req_status = 'completed', updated_at = NOW()
+WHERE id = $1;

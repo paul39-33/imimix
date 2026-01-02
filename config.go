@@ -31,15 +31,15 @@ type User struct {
 }
 
 type MimixObj struct {
-	ID          uuid.UUID `json:"id"`
-	Obj         string    `json:"obj"`
-	ObjType     string    `json:"obj_type"`
-	PromoteDate time.Time `json:"promote_date"`
-	ObjVer      string    `json:"obj_ver"`
-	Lib         string    `json:"lib"`
-	LibID       uuid.UUID `json:"lib_id"`
-	MimixStatus string    `json:"mimix_status"`
-	Developer   string    `json:"developer"`
+	ID          uuid.UUID            `json:"id"`
+	Obj         string               `json:"obj"`
+	ObjType     string               `json:"obj_type"`
+	PromoteDate time.Time            `json:"promote_date"`
+	ObjVer      string               `json:"obj_ver"`
+	Lib         string               `json:"lib"`
+	LibID       uuid.UUID            `json:"lib_id"`
+	MimixStatus database.MimixStatus `json:"mimix_status"`
+	Developer   string               `json:"developer"`
 }
 
 type MimixLib struct {
@@ -66,11 +66,20 @@ type ObjRequest struct {
 	ObjVer      string    `json:"obj_ver"`
 	ObjType     string    `json:"obj_type"`
 	PromoteDate time.Time `json:"promote_date"`
+	SourceObjID uuid.UUID `json:"source_obj_id,omitempty"`
 }
 
 type ObjStatus struct {
-	Obj         string `json:"obj"`
-	MimixStatus string `json:"mimix_status"`
+	Obj         string               `json:"obj"`
+	MimixStatus database.MimixStatus `json:"mimix_status"`
+}
+
+var allowedMimixStatus = map[string]database.MimixStatus{
+	"unset":              database.MimixStatusUnset,
+	"done":               database.MimixStatusDone,
+	"daftarkan":          database.MimixStatusDaftarkan,
+	"tidak perlu daftar": database.MimixStatusTidakperludaftar,
+	"on progress":        database.MimixStatusOnprogress,
 }
 
 func ToNullTime(t time.Time) sql.NullTime {
@@ -85,6 +94,13 @@ func NullTimeToTime(nt sql.NullTime) time.Time {
 		return nt.Time
 	}
 	return time.Time{}
+}
+
+func NullStringToString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
 }
 
 // automate middleware for authentication
@@ -280,6 +296,14 @@ func (cfg *apiConfig) CreateObj(c *gin.Context) {
 	params.Lib = strings.ToLower(strings.TrimSpace(params.Lib))
 	params.Developer = strings.ToLower(strings.TrimSpace(params.Developer))
 
+	// validate mimix status
+	statusKey := strings.ToLower(strings.TrimSpace(string(params.MimixStatus)))
+	statusVal, ok := allowedMimixStatus[statusKey]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid mimix_status"})
+		return
+	}
+
 	//fix promote date null issue
 	promoteDate := ToNullTime(params.PromoteDate)
 
@@ -291,7 +315,7 @@ func (cfg *apiConfig) CreateObj(c *gin.Context) {
 		Lib:         params.Lib,
 		LibID:       libID,
 		ObjVer:      params.ObjVer,
-		MimixStatus: params.MimixStatus,
+		MimixStatus: statusVal,
 		Developer:   params.Developer,
 	})
 
@@ -574,9 +598,17 @@ func (cfg *apiConfig) UpdateObjStatus(c *gin.Context) {
 		return
 	}
 
+	// validate incoming status string and convert to enum
+	statusKey := strings.ToLower(strings.TrimSpace(params.MimixStatus))
+	statusVal, ok := allowedMimixStatus[statusKey]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid mimix_status"})
+		return
+	}
+
 	err = cfg.dbQueries.UpdateObjStatus(c.Request.Context(), database.UpdateObjStatusParams{
 		Obj:         objName,
-		MimixStatus: params.MimixStatus,
+		MimixStatus: statusVal,
 	})
 
 	if err != nil {
@@ -589,7 +621,7 @@ func (cfg *apiConfig) UpdateObjStatus(c *gin.Context) {
 
 	MimixStatus := ObjStatus{
 		Obj:         objName,
-		MimixStatus: params.MimixStatus,
+		MimixStatus: statusVal,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -819,4 +851,356 @@ func (cfg *apiConfig) GetObjByDev(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, resultObjs)
+}
+
+func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
+	//get user token
+	token, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		log.Printf("error getting bearer token: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid token",
+		})
+		return
+	}
+
+	//validate user token
+	id, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("error validating token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	//get user job
+	user, err := cfg.dbQueries.GetUserByID(c.Request.Context(), id)
+	if err != nil {
+		log.Printf("error getting user by Username: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not get user",
+		})
+		return
+	}
+
+	//check if user job is "cmt" or "dev"
+	if user.Job != "cmt" && user.Job != "dev" {
+		log.Printf("user unauthorized job: %v", user.Job)
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden: insufficient permissions",
+		})
+		return
+	}
+
+	//get obj by id
+	objID := c.Param("id")
+
+	objUUID, err := uuid.Parse(objID)
+	if err != nil {
+		log.Printf("error parsing obj id: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid obj id",
+		})
+		return
+	}
+
+	type parameters struct {
+		Obj         string    `json:"obj"`
+		ObjType     string    `json:"obj_type"`
+		Lib         string    `json:"lib"`
+		PromoteDate time.Time `json:"promote_date"`
+		ObjVer      string    `json:"obj_ver"`
+		Developer   string    `json:"developer"`
+		MimixStatus string    `json:"mimix_status"`
+	}
+
+	var params parameters
+
+	//bind json parameters
+	if err = c.ShouldBindJSON(&params); err != nil {
+		log.Printf("error binding json: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid parameters",
+		})
+		return
+	}
+
+	// validate mimix status
+	statusKey := strings.ToLower(strings.TrimSpace(params.MimixStatus))
+	statusVal, ok := allowedMimixStatus[statusKey]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid mimix_status"})
+		return
+	}
+
+	//fix promote date null issue
+	promoteDate := ToNullTime(params.PromoteDate)
+
+	updatedObj, err := cfg.dbQueries.UpdateObjInfo(c.Request.Context(), database.UpdateObjInfoParams{
+		ID:          objUUID,
+		Obj:         params.Obj,
+		ObjType:     params.ObjType,
+		PromoteDate: promoteDate,
+		ObjVer:      params.ObjVer,
+		Developer:   params.Developer,
+		MimixStatus: statusVal,
+	})
+	if err != nil {
+		log.Printf("error updating obj info: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not update obj info",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "obj info updated successfully",
+		"data":    updatedObj,
+	})
+}
+
+func (cfg *apiConfig) ObjtoObjReq(c *gin.Context) {
+	//get user token
+	token, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		log.Printf("error getting bearer token: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid token",
+		})
+		return
+	}
+
+	//validate user token
+	id, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("error validating token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	//get user job
+	user, err := cfg.dbQueries.GetUserByID(c.Request.Context(), id)
+	if err != nil {
+		log.Printf("error getting user by Username: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not get user",
+		})
+		return
+	}
+
+	//check if user job is "dev" or "cmt"
+	if user.Job != "dev" && user.Job != "cmt" {
+		log.Printf("user unauthorized job: %v", user.Job)
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden: insufficient permissions",
+		})
+		return
+	}
+
+	//get obj by id
+	objID := c.Param("id")
+
+	objUUID, err := uuid.Parse(objID)
+	if err != nil {
+		log.Printf("error parsing obj id: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid obj id",
+		})
+		return
+	}
+
+	obj, err := cfg.dbQueries.GetObjByID(c.Request.Context(), objUUID)
+	if err != nil {
+		log.Printf("error getting mimix object: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not get mimix object",
+		})
+		return
+	}
+
+	err = cfg.dbQueries.AddObjToObjReq(c.Request.Context(), database.AddObjToObjReqParams{
+		ID:        obj.ID,
+		Requester: user.Username,
+		ReqStatus: "pending",
+	})
+	if err != nil {
+		log.Printf("error adding obj to obj request: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not add obj to obj request",
+		})
+		return
+	}
+
+	//update obj mimix status to "on progress"
+	err = cfg.dbQueries.UpdateObjStatus(c.Request.Context(), database.UpdateObjStatusParams{
+		Obj:         obj.Obj,
+		MimixStatus: database.MimixStatusOnprogress,
+	})
+	if err != nil {
+		log.Printf("error updating mimix object status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not update mimix object status",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "obj added to obj request successfully",
+	})
+}
+
+func (cfg *apiConfig) ObjReqToObj(c *gin.Context) {
+	//get user token
+	token, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		log.Printf("error getting bearer token: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid token",
+		})
+		return
+	}
+
+	//validate user token
+	user, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("error validating token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	//get user job
+	userData, err := cfg.dbQueries.GetUserByID(c.Request.Context(), user)
+	if err != nil {
+		log.Printf("error getting user by Username: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not get user",
+		})
+		return
+	}
+
+	//check if user job is "dc"
+	if userData.Job != "dc" {
+		log.Printf("user unauthorized job: %v", userData.Job)
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden: insufficient permissions",
+		})
+		return
+	}
+
+	//get obj req by id
+	objReqID := c.Param("reqid")
+
+	objReqUUID, err := uuid.Parse(objReqID)
+	if err != nil {
+		log.Printf("error parsing obj req id: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid obj req id",
+		})
+		return
+	}
+
+	objReq, err := cfg.dbQueries.GetMimixObjReqByID(c.Request.Context(), objReqUUID)
+	if err != nil {
+		log.Printf("error getting mimix object request: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not get mimix object request",
+		})
+		return
+	}
+
+	//change obj req status to "completed"
+	err = cfg.dbQueries.UpdateMimixObjReqStatus(c.Request.Context(), database.UpdateMimixObjReqStatusParams{
+		ID:        objReq.ID,
+		ReqStatus: "completed",
+	})
+	if err != nil {
+		log.Printf("error updating mimix object request status: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not update mimix object request status",
+		})
+		return
+	}
+
+	//check if obj req already exists as obj
+	if objReq.SourceObjID.Valid {
+		sourceObjID := objReq.SourceObjID.UUID
+
+		sourceObj, err := cfg.dbQueries.GetObjByID(c.Request.Context(), sourceObjID)
+		if err != nil {
+			log.Printf("error getting mimix object by source obj id: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "could not get mimix object",
+			})
+			return
+		}
+
+		//change obj mimix status to "completed"
+		err = cfg.dbQueries.UpdateObjStatus(c.Request.Context(), database.UpdateObjStatusParams{
+			Obj:         sourceObj.Obj,
+			MimixStatus: database.MimixStatusDone,
+		})
+		if err != nil {
+			log.Printf("error updating mimix object status: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "could not update mimix object status",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "obj request already exists as obj, status updated to completed",
+			"obj_id":  sourceObj.ID,
+		})
+		return
+	} else {
+		//check if new obj lib exists (create if not)
+		var libID uuid.UUID
+		libRow, err := cfg.dbQueries.GetMimixLibByName(c.Request.Context(), objReq.Lib)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				createdLib, err := cfg.dbQueries.CreateMimixLib(c.Request.Context(), objReq.Lib)
+				if err != nil {
+					log.Printf("error creating lib: %v", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create lib"})
+					return
+				}
+				libID = createdLib.ID
+			} else {
+				log.Printf("error fetching lib: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not get lib"})
+				return
+			}
+		} else {
+			libID = libRow.ID
+		}
+
+		//create new obj from obj req
+		newObj, err := cfg.dbQueries.AddObj(c.Request.Context(), database.AddObjParams{
+			Obj:         objReq.ObjName,
+			ObjType:     objReq.ObjType,
+			PromoteDate: ToNullTime(objReq.PromoteDate),
+			Lib:         objReq.Lib,
+			LibID:       libID,
+			ObjVer:      objReq.ObjVer,
+			MimixStatus: database.MimixStatusDone,
+			Developer:   NullStringToString(objReq.Developer),
+		})
+		if err != nil {
+			log.Printf("error creating mimix object from obj request: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "could not create mimix object from obj request",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "obj request converted to obj successfully",
+			"obj_id":  newObj.ID,
+		})
+	}
 }
