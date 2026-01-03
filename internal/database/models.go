@@ -100,6 +100,48 @@ func (ns NullPromoteStatus) Value() (driver.Value, error) {
 	return string(ns.PromoteStatus), nil
 }
 
+type ReqStatus string
+
+const (
+	ReqStatusPending   ReqStatus = "pending"
+	ReqStatusCompleted ReqStatus = "completed"
+)
+
+func (e *ReqStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ReqStatus(s)
+	case string:
+		*e = ReqStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ReqStatus: %T", src)
+	}
+	return nil
+}
+
+type NullReqStatus struct {
+	ReqStatus ReqStatus
+	Valid     bool // Valid is true if ReqStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullReqStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ReqStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ReqStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullReqStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ReqStatus), nil
+}
+
 type UserJob string
 
 const (
@@ -166,7 +208,6 @@ type MimixObjReq struct {
 	ID            uuid.UUID
 	ObjName       string
 	Requester     string
-	ReqStatus     string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	Lib           string
@@ -176,6 +217,7 @@ type MimixObjReq struct {
 	Developer     sql.NullString
 	PromoteStatus NullPromoteStatus
 	SourceObjID   uuid.NullUUID
+	ReqStatus     ReqStatus
 }
 
 type User struct {

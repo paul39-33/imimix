@@ -39,6 +39,7 @@ INSERT INTO mimix_obj_req (
     obj_ver,
     obj_type,
     promote_date,
+    developer,
     source_obj_id
 )
 SELECT
@@ -51,6 +52,7 @@ SELECT
     o.obj_ver,
     o.obj_type,
     o.promote_date,
+    o.developer,
     o.id          -- source obj id
 FROM mimix_obj AS o
 WHERE o.id = $1;

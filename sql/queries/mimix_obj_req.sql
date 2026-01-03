@@ -6,13 +6,14 @@ INSERT INTO mimix_obj_req (
     lib,
     obj_ver,
     obj_type,
-    promote_date
+    promote_date,
+    developer
 )
 VALUES (
     $1, $2, $3, $4,
-    $5, $6, $7
+    $5, $6, $7, $8
 )
-RETURNING id, obj_name, requester, req_status, lib, obj_ver, obj_type, promote_date, created_at, updated_at;
+RETURNING id, obj_name, requester, req_status, lib, obj_ver, obj_type, promote_date, developer, created_at, updated_at;
 
 -- name: UpdateMimixObjReqStatus :exec
 UPDATE mimix_obj_req
@@ -42,3 +43,22 @@ WHERE id = $1;
 UPDATE mimix_obj_req
 SET req_status = 'completed', updated_at = NOW()
 WHERE id = $1;
+
+-- name: UpdatePromoteStatus :exec
+UPDATE mimix_obj_req
+SET promote_status = $2
+WHERE id = $1;
+
+-- name: UpdateMimixObjReqInfo :one
+UPDATE mimix_obj_req
+SET obj_name = $2,
+    lib = $3,
+    obj_ver = $4,
+    obj_type = $5,
+    promote_date = $6,
+    developer = $7,
+    updated_at = NOW(),
+    promote_status = $8,
+    req_status = $9
+WHERE id = $1
+RETURNING id, obj_name, requester, req_status, lib, obj_ver, obj_type, promote_date, developer, created_at, updated_at, promote_status;

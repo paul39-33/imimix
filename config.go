@@ -31,15 +31,15 @@ type User struct {
 }
 
 type MimixObj struct {
-	ID          uuid.UUID            `json:"id"`
-	Obj         string               `json:"obj"`
-	ObjType     string               `json:"obj_type"`
-	PromoteDate time.Time            `json:"promote_date"`
-	ObjVer      string               `json:"obj_ver"`
-	Lib         string               `json:"lib"`
-	LibID       uuid.UUID            `json:"lib_id"`
-	MimixStatus database.MimixStatus `json:"mimix_status"`
-	Developer   string               `json:"developer"`
+	ID          uuid.UUID `json:"id"`
+	Obj         string    `json:"obj"`
+	ObjType     string    `json:"obj_type"`
+	PromoteDate time.Time `json:"promote_date"`
+	ObjVer      string    `json:"obj_ver"`
+	Lib         string    `json:"lib"`
+	LibID       uuid.UUID `json:"lib_id"`
+	MimixStatus string    `json:"mimix_status"`
+	Developer   string    `json:"developer"`
 }
 
 type MimixLib struct {
@@ -53,25 +53,35 @@ type CreateObjReqInput struct {
 	ObjVer      string    `json:"obj_ver"`
 	ObjType     string    `json:"obj_type"`
 	PromoteDate time.Time `json:"promote_date"`
+	Developer   string    `json:"developer"`
 }
 
 type ObjRequest struct {
-	ID          uuid.UUID `json:"id"`
-	ObjName     string    `json:"obj_name"`
-	Requester   string    `json:"requester"`
-	ReqStatus   string    `json:"req_status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Lib         string    `json:"lib"`
-	ObjVer      string    `json:"obj_ver"`
-	ObjType     string    `json:"obj_type"`
-	PromoteDate time.Time `json:"promote_date"`
-	SourceObjID uuid.UUID `json:"source_obj_id,omitempty"`
+	ID            uuid.UUID `json:"id"`
+	ObjName       string    `json:"obj_name"`
+	Requester     string    `json:"requester"`
+	Developer     string    `json:"developer,omitempty"`
+	ReqStatus     string    `json:"req_status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	Lib           string    `json:"lib"`
+	ObjVer        string    `json:"obj_ver"`
+	ObjType       string    `json:"obj_type"`
+	PromoteDate   time.Time `json:"promote_date"`
+	SourceObjID   uuid.UUID `json:"source_obj_id,omitempty"`
+	PromoteStatus string    `json:"promote_status,omitempty"`
 }
 
 type ObjStatus struct {
 	Obj         string               `json:"obj"`
 	MimixStatus database.MimixStatus `json:"mimix_status"`
+}
+
+var allowedUserJobs = map[string]database.UserJob{
+	"cmt":  database.UserJobCmt,
+	"dev":  database.UserJobDev,
+	"dc":   database.UserJobDc,
+	"user": database.UserJobUser,
 }
 
 var allowedMimixStatus = map[string]database.MimixStatus{
@@ -80,6 +90,16 @@ var allowedMimixStatus = map[string]database.MimixStatus{
 	"daftarkan":          database.MimixStatusDaftarkan,
 	"tidak perlu daftar": database.MimixStatusTidakperludaftar,
 	"on progress":        database.MimixStatusOnprogress,
+}
+
+var allowedReqStatus = map[string]database.ReqStatus{
+	"pending":   database.ReqStatusPending,
+	"completed": database.ReqStatusCompleted,
+}
+
+var allowedPromoteStatus = map[string]database.PromoteStatus{
+	"in_progress": database.PromoteStatusInProgress,
+	"deployed":    database.PromoteStatusDeployed,
 }
 
 func ToNullTime(t time.Time) sql.NullTime {
@@ -140,16 +160,9 @@ func (cfg *apiConfig) CreateUser(c *gin.Context) {
 	jobStr := strings.ToLower(strings.TrimSpace(params.Job))
 
 	// allowed enum values (replace/add values if your DB enum has more)
-	allowedJobs := map[database.UserJob]struct{}{
-		database.UserJob("user"): {},
-		database.UserJob("dev"):  {},
-		database.UserJob("cmt"):  {},
-		database.UserJob("dc"):   {},
-	}
-
-	jobVal := database.UserJob(jobStr)
-	if _, ok := allowedJobs[jobVal]; !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job value"})
+	job, ok := allowedUserJobs[jobStr]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job type"})
 		return
 	}
 
@@ -165,7 +178,7 @@ func (cfg *apiConfig) CreateUser(c *gin.Context) {
 	user, err := cfg.dbQueries.CreateUser(c.Request.Context(), database.CreateUserParams{
 		Username:       params.Username,
 		HashedPassword: hashedPassword,
-		Job:            jobVal,
+		Job:            job,
 	})
 	if err != nil {
 		log.Printf("error creating user: %v", err)
@@ -346,7 +359,7 @@ func (cfg *apiConfig) CreateObj(c *gin.Context) {
 		Lib:         obj.Lib,
 		LibID:       libID,
 		ObjVer:      obj.ObjVer,
-		MimixStatus: obj.MimixStatus,
+		MimixStatus: string(obj.MimixStatus),
 		Developer:   obj.Developer,
 	}
 
@@ -397,7 +410,7 @@ func (cfg *apiConfig) GetObjByName(c *gin.Context) {
 		PromoteDate: promoteDate,
 		Lib:         obj.Lib,
 		ObjVer:      obj.ObjVer,
-		MimixStatus: obj.MimixStatus,
+		MimixStatus: string(obj.MimixStatus),
 	}
 
 	c.JSON(http.StatusOK, resultObj)
@@ -446,7 +459,7 @@ func (cfg *apiConfig) GetObjByLib(c *gin.Context) {
 			PromoteDate: NullTimeToTime(obj.PromoteDate),
 			Lib:         obj.Lib,
 			ObjVer:      obj.ObjVer,
-			MimixStatus: obj.MimixStatus,
+			MimixStatus: string(obj.MimixStatus),
 		}
 		resultObjs = append(resultObjs, resultObj)
 	}
@@ -684,6 +697,10 @@ func (cfg *apiConfig) CreateObjReq(c *gin.Context) {
 		ObjVer:      input.ObjVer,
 		ObjType:     input.ObjType,
 		PromoteDate: input.PromoteDate,
+		Developer: sql.NullString{
+			String: input.Developer,
+			Valid:  strings.TrimSpace(input.Developer) != "",
+		},
 	}
 
 	ObjReqRow, err := cfg.dbQueries.CreateMimixObjReq(c.Request.Context(), objReq)
@@ -699,7 +716,7 @@ func (cfg *apiConfig) CreateObjReq(c *gin.Context) {
 		ID:          ObjReqRow.ID,
 		ObjName:     ObjReqRow.ObjName,
 		Requester:   ObjReqRow.Requester,
-		ReqStatus:   ObjReqRow.ReqStatus,
+		ReqStatus:   string(ObjReqRow.ReqStatus),
 		CreatedAt:   ObjReqRow.CreatedAt,
 		UpdatedAt:   ObjReqRow.UpdatedAt,
 		Lib:         ObjReqRow.Lib,
@@ -846,7 +863,7 @@ func (cfg *apiConfig) GetObjByDev(c *gin.Context) {
 			PromoteDate: NullTimeToTime(obj.PromoteDate),
 			Lib:         obj.Lib,
 			ObjVer:      obj.ObjVer,
-			MimixStatus: obj.MimixStatus,
+			MimixStatus: string(obj.MimixStatus),
 			Developer:   obj.Developer,
 		})
 	}
@@ -1114,10 +1131,7 @@ func (cfg *apiConfig) ObjReqToObj(c *gin.Context) {
 	}
 
 	//change obj req status to "completed"
-	err = cfg.dbQueries.UpdateMimixObjReqStatus(c.Request.Context(), database.UpdateMimixObjReqStatusParams{
-		ID:        objReq.ID,
-		ReqStatus: "completed",
-	})
+	err = cfg.dbQueries.CompleteMimixObjReq(c.Request.Context(), objReq.ID)
 	if err != nil {
 		log.Printf("error updating mimix object request status: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -1203,4 +1217,143 @@ func (cfg *apiConfig) ObjReqToObj(c *gin.Context) {
 			"obj_id":  newObj.ID,
 		})
 	}
+}
+
+func (cfg *apiConfig) UpdateObjReqInfo(c *gin.Context) {
+	//get user token
+	token, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		log.Printf("error getting bearer token: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid token",
+		})
+		return
+	}
+
+	//validate user token
+	id, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("error validating token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	//get user job
+	user, err := cfg.dbQueries.GetUserByID(c.Request.Context(), id)
+	if err != nil {
+		log.Printf("error getting user by Username: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not get user",
+		})
+		return
+	}
+
+	//check if user job is "dev" or "cmt" or "dc"
+	if user.Job != "dev" && user.Job != "cmt" && user.Job != "dc" {
+		log.Printf("user unauthorized job: %v", user.Job)
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "forbidden: insufficient permissions",
+		})
+		return
+	}
+
+	//get obj req by id
+	objReqID := c.Param("id")
+
+	objReqUUID, err := uuid.Parse(objReqID)
+	if err != nil {
+		log.Printf("error parsing obj req id: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid obj req id",
+		})
+		return
+	}
+
+	type parameters struct {
+		ObjName       string    `json:"obj_name"`
+		Lib           string    `json:"lib"`
+		PromoteDate   time.Time `json:"promote_date"`
+		ObjVer        string    `json:"obj_ver"`
+		ObjType       string    `json:"obj_type"`
+		Developer     string    `json:"developer"`
+		PromoteStatus string    `json:"promote_status"`
+		ReqStatus     string    `json:"req_status"`
+	}
+
+	var params parameters
+
+	//bind json parameters
+	if err = c.ShouldBindJSON(&params); err != nil {
+		log.Printf("error binding json: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid parameters",
+		})
+		return
+	}
+
+	//bind json parameters
+	if err = c.ShouldBindJSON(&params); err != nil {
+		log.Printf("error binding json: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid parameters",
+		})
+		return
+	}
+
+	// prepare developer as sql.NullString
+	devNull := sql.NullString{
+		String: params.Developer,
+		Valid:  strings.TrimSpace(params.Developer) != "",
+	}
+
+	// validate req_status against allowed values
+	reqKey := strings.ToLower(strings.TrimSpace(params.ReqStatus))
+	reqVal, ok := allowedReqStatus[reqKey]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid req_status"})
+		return
+	}
+
+	// prepare promote_status as nullable enum
+	var promoteStatus database.NullPromoteStatus
+	if strings.TrimSpace(params.PromoteStatus) != "" {
+		psKey := strings.ToLower(strings.TrimSpace(params.PromoteStatus))
+		psVal, ok := allowedPromoteStatus[psKey]
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid promote_status"})
+			return
+		}
+		promoteStatus = database.NullPromoteStatus{
+			PromoteStatus: psVal,
+			Valid:         true,
+		}
+	} else {
+		promoteStatus = database.NullPromoteStatus{Valid: false}
+	}
+
+	updatedMimixObjReq, err := cfg.dbQueries.UpdateMimixObjReqInfo(c.Request.Context(), database.UpdateMimixObjReqInfoParams{
+		ID:            objReqUUID,
+		ObjName:       params.ObjName,
+		Lib:           params.Lib,
+		PromoteDate:   params.PromoteDate,
+		ObjVer:        params.ObjVer,
+		ObjType:       params.ObjType,
+		Developer:     devNull,
+		PromoteStatus: promoteStatus,
+		ReqStatus:     reqVal,
+	})
+	if err != nil {
+		log.Printf("error updating obj req info: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not update obj req info",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "obj req info updated successfully",
+		"data":    updatedMimixObjReq,
+	})
 }
