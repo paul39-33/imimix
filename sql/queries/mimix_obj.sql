@@ -43,7 +43,7 @@ INSERT INTO mimix_obj_req (
     source_obj_id
 )
 SELECT
-    o.obj_name,
+    o.obj,
     $2,
     $3,
     NOW(),
@@ -85,3 +85,11 @@ WHERE id = $1;
 SELECT mimix_status
 FROM mimix_obj
 WHERE id = $1;
+
+-- name: SearchMimixObj :many
+SELECT *
+FROM mimix_obj
+WHERE
+    obj ILIKE '%' || $1 || '%'
+ OR lib ILIKE '%' || $1 || '%'
+ OR developer ILIKE '%' || $1 || '%';

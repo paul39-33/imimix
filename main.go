@@ -47,13 +47,18 @@ func main() {
 		api.DELETE("/delete_mimix_obj/:obj", apiCfg.RemoveObj)
 		api.DELETE("/delete_obj_req/:reqid", apiCfg.RemoveMimixObjReq)
 		api.GET("/get_mimix_obj_by_name/:name", apiCfg.GetObjByName)
-		api.GET("/get_mimix_obj/:lib", apiCfg.GetObjByLib)
+		api.GET("/get_mimix_obj_by_lib/:lib", apiCfg.GetObjByLib)
 		api.GET("/get_mimix_obj_by_dev/:dev", apiCfg.GetObjByDev)
 		api.PATCH("/update_mimix_obj_status/:obj", apiCfg.UpdateObjStatus)
 
 		api.PATCH("/update_mimix_obj_info/:id", apiCfg.UpdateObjInfo) // handler expects :id
 		api.POST("/add_obj_to_obj_req/:id", apiCfg.ObjtoObjReq)       // handler expects :id
 		api.POST("/convert_obj_req/:reqid", apiCfg.ObjReqToObj)       // handler expects :reqid
+
+		api.PATCH("/update_obj_req_info/:id", apiCfg.UpdateObjReqInfo) // handler expects :id
+
+		api.GET("/obj/search/:query", apiCfg.SearchObj)
+
 	}
 
 	//start server on port 8080

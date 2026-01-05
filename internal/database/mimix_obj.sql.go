@@ -82,7 +82,7 @@ INSERT INTO mimix_obj_req (
     source_obj_id
 )
 SELECT
-    o.obj_name,
+    o.obj,
     $2,
     $3,
     NOW(),
@@ -228,6 +228,49 @@ WHERE id = $1
 func (q *Queries) RemoveObjByID(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, removeObjByID, id)
 	return err
+}
+
+const searchMimixObj = `-- name: SearchMimixObj :many
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
+FROM mimix_obj
+WHERE
+    obj ILIKE '%' || $1 || '%'
+ OR lib ILIKE '%' || $1 || '%'
+ OR developer ILIKE '%' || $1 || '%'
+`
+
+func (q *Queries) SearchMimixObj(ctx context.Context, dollar_1 sql.NullString) ([]MimixObj, error) {
+	rows, err := q.db.QueryContext(ctx, searchMimixObj, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MimixObj
+	for rows.Next() {
+		var i MimixObj
+		if err := rows.Scan(
+			&i.ID,
+			&i.Obj,
+			&i.ObjType,
+			&i.PromoteDate,
+			&i.Lib,
+			&i.LibID,
+			&i.ObjVer,
+			&i.MimixStatus,
+			&i.Developer,
+			&i.Keterangan,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateMimixStatus = `-- name: UpdateMimixStatus :exec

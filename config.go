@@ -40,6 +40,7 @@ type MimixObj struct {
 	LibID       uuid.UUID `json:"lib_id"`
 	MimixStatus string    `json:"mimix_status"`
 	Developer   string    `json:"developer"`
+	Keterangan  string    `json:"keterangan"`
 }
 
 type MimixLib struct {
@@ -388,7 +389,7 @@ func (cfg *apiConfig) GetObjByName(c *gin.Context) {
 	}
 
 	//get obj name input and clean it
-	objName := c.Param("obj")
+	objName := c.Param("name")
 	objName = strings.ToLower(strings.TrimSpace(objName))
 
 	obj, err := cfg.dbQueries.GetObjByName(c.Request.Context(), objName)
@@ -460,6 +461,8 @@ func (cfg *apiConfig) GetObjByLib(c *gin.Context) {
 			Lib:         obj.Lib,
 			ObjVer:      obj.ObjVer,
 			MimixStatus: string(obj.MimixStatus),
+			Developer:   obj.Developer,
+			Keterangan:  NullStringToString(obj.Keterangan),
 		}
 		resultObjs = append(resultObjs, resultObj)
 	}
@@ -930,6 +933,7 @@ func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
 		ObjVer      string    `json:"obj_ver"`
 		Developer   string    `json:"developer"`
 		MimixStatus string    `json:"mimix_status"`
+		Keterangan  string    `json:"keterangan"`
 	}
 
 	var params parameters
@@ -954,6 +958,11 @@ func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
 	//fix promote date null issue
 	promoteDate := ToNullTime(params.PromoteDate)
 
+	keteranganNull := sql.NullString{
+		String: params.Keterangan,
+		Valid:  strings.TrimSpace(params.Keterangan) != "",
+	}
+
 	updatedObj, err := cfg.dbQueries.UpdateObjInfo(c.Request.Context(), database.UpdateObjInfoParams{
 		ID:          objUUID,
 		Obj:         params.Obj,
@@ -962,6 +971,8 @@ func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
 		ObjVer:      params.ObjVer,
 		Developer:   params.Developer,
 		MimixStatus: statusVal,
+		Lib:         params.Lib,
+		Keterangan:  keteranganNull,
 	})
 	if err != nil {
 		log.Printf("error updating obj info: %v", err)
@@ -1356,4 +1367,64 @@ func (cfg *apiConfig) UpdateObjReqInfo(c *gin.Context) {
 		"message": "obj req info updated successfully",
 		"data":    updatedMimixObjReq,
 	})
+}
+
+func (cfg *apiConfig) SearchObj(c *gin.Context) {
+	// get user token
+	token, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		log.Printf("error getting bearer token: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid token",
+		})
+		return
+	}
+
+	// validate user token
+	_, err = auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("error validating token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	// get search input and clean it
+	query := c.Param("query")
+	query = strings.ToLower(strings.TrimSpace(query))
+	search := sql.NullString{
+		String: query,
+		Valid:  query != "",
+	}
+
+	// search objs by obj / lib / developer
+	objs, err := cfg.dbQueries.SearchMimixObj(
+		c.Request.Context(),
+		search,
+	)
+	if err != nil {
+		log.Printf("error searching mimix objects: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not search mimix objects",
+		})
+		return
+	}
+
+	// map DB models → API models
+	var resultObjs []MimixObj
+	for _, obj := range objs {
+		resultObjs = append(resultObjs, MimixObj{
+			ID:          obj.ID,
+			Obj:         obj.Obj,
+			ObjType:     obj.ObjType,
+			PromoteDate: NullTimeToTime(obj.PromoteDate),
+			Lib:         obj.Lib,
+			ObjVer:      obj.ObjVer,
+			MimixStatus: string(obj.MimixStatus),
+			Developer:   obj.Developer,
+		})
+	}
+
+	c.JSON(http.StatusOK, resultObjs)
 }
