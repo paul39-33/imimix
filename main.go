@@ -46,9 +46,6 @@ func main() {
 		api.POST("/create_obj_req", apiCfg.CreateObjReq)
 		api.DELETE("/delete_mimix_obj/:obj", apiCfg.RemoveObj)
 		api.DELETE("/delete_obj_req/:reqid", apiCfg.RemoveMimixObjReq)
-		api.GET("/get_mimix_obj_by_name/:name", apiCfg.GetObjByName)
-		api.GET("/get_mimix_obj_by_lib/:lib", apiCfg.GetObjByLib)
-		api.GET("/get_mimix_obj_by_dev/:dev", apiCfg.GetObjByDev)
 		api.PATCH("/update_mimix_obj_status/:obj", apiCfg.UpdateObjStatus)
 
 		api.PATCH("/update_mimix_obj_info/:id", apiCfg.UpdateObjInfo) // handler expects :id

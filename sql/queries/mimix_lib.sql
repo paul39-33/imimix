@@ -1,7 +1,3 @@
--- name: GetObjByLib :many
-SELECT *
-FROM mimix_obj
-WHERE lib = $1;
 
 -- name: GetMimixLibByName :one
 SELECT id, lib

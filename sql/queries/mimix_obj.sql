@@ -9,20 +9,12 @@ SET mimix_status = $2
 WHERE obj = $1
 RETURNING obj, mimix_status;
 
--- name: GetObjByName :one
-SELECT *
-FROM mimix_obj
-WHERE obj = $1;
 
 -- name: GetObjByID :one
 SELECT *
 FROM mimix_obj
 WHERE id = $1;
 
--- name: GetObjByDev :many
-SELECT *
-FROM mimix_obj
-WHERE developer = $1;
 
 -- name: RemoveObjByID :exec
 DELETE FROM mimix_obj

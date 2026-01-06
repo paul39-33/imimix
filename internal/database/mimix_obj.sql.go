@@ -132,46 +132,6 @@ func (q *Queries) GetMimixStatusByID(ctx context.Context, id uuid.UUID) (MimixSt
 	return mimix_status, err
 }
 
-const getObjByDev = `-- name: GetObjByDev :many
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
-FROM mimix_obj
-WHERE developer = $1
-`
-
-func (q *Queries) GetObjByDev(ctx context.Context, developer string) ([]MimixObj, error) {
-	rows, err := q.db.QueryContext(ctx, getObjByDev, developer)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MimixObj
-	for rows.Next() {
-		var i MimixObj
-		if err := rows.Scan(
-			&i.ID,
-			&i.Obj,
-			&i.ObjType,
-			&i.PromoteDate,
-			&i.Lib,
-			&i.LibID,
-			&i.ObjVer,
-			&i.MimixStatus,
-			&i.Developer,
-			&i.Keterangan,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getObjByID = `-- name: GetObjByID :one
 SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
 FROM mimix_obj
@@ -180,30 +140,6 @@ WHERE id = $1
 
 func (q *Queries) GetObjByID(ctx context.Context, id uuid.UUID) (MimixObj, error) {
 	row := q.db.QueryRowContext(ctx, getObjByID, id)
-	var i MimixObj
-	err := row.Scan(
-		&i.ID,
-		&i.Obj,
-		&i.ObjType,
-		&i.PromoteDate,
-		&i.Lib,
-		&i.LibID,
-		&i.ObjVer,
-		&i.MimixStatus,
-		&i.Developer,
-		&i.Keterangan,
-	)
-	return i, err
-}
-
-const getObjByName = `-- name: GetObjByName :one
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
-FROM mimix_obj
-WHERE obj = $1
-`
-
-func (q *Queries) GetObjByName(ctx context.Context, obj string) (MimixObj, error) {
-	row := q.db.QueryRowContext(ctx, getObjByName, obj)
 	var i MimixObj
 	err := row.Scan(
 		&i.ID,

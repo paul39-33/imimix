@@ -37,46 +37,6 @@ func (q *Queries) GetMimixLibByName(ctx context.Context, lib string) (MimixLib, 
 	return i, err
 }
 
-const getObjByLib = `-- name: GetObjByLib :many
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
-FROM mimix_obj
-WHERE lib = $1
-`
-
-func (q *Queries) GetObjByLib(ctx context.Context, lib string) ([]MimixObj, error) {
-	rows, err := q.db.QueryContext(ctx, getObjByLib, lib)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MimixObj
-	for rows.Next() {
-		var i MimixObj
-		if err := rows.Scan(
-			&i.ID,
-			&i.Obj,
-			&i.ObjType,
-			&i.PromoteDate,
-			&i.Lib,
-			&i.LibID,
-			&i.ObjVer,
-			&i.MimixStatus,
-			&i.Developer,
-			&i.Keterangan,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const updateObjLibID = `-- name: UpdateObjLibID :exec
 UPDATE mimix_obj
 SET lib_id = $2

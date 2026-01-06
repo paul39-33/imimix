@@ -367,108 +367,9 @@ func (cfg *apiConfig) CreateObj(c *gin.Context) {
 	c.JSON(http.StatusOK, createdObj)
 }
 
-func (cfg *apiConfig) GetObjByName(c *gin.Context) {
-	//get user token
-	token, err := auth.GetBearerToken(c.Request.Header)
-	if err != nil {
-		log.Printf("error getting bearer token: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid token",
-		})
-		return
-	}
 
-	//validate user token
-	_, err = auth.ValidateJWT(token, cfg.secret)
-	if err != nil {
-		log.Printf("error validating token: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
-		return
-	}
 
-	//get obj name input and clean it
-	objName := c.Param("name")
-	objName = strings.ToLower(strings.TrimSpace(objName))
 
-	obj, err := cfg.dbQueries.GetObjByName(c.Request.Context(), objName)
-	if err != nil {
-		log.Printf("error getting mimix object: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "could not get mimix object",
-		})
-		return
-	}
-
-	//fix promote date null issue
-	promoteDate := NullTimeToTime(obj.PromoteDate)
-
-	resultObj := MimixObj{
-		ID:          obj.ID,
-		Obj:         obj.Obj,
-		ObjType:     obj.ObjType,
-		PromoteDate: promoteDate,
-		Lib:         obj.Lib,
-		ObjVer:      obj.ObjVer,
-		MimixStatus: string(obj.MimixStatus),
-	}
-
-	c.JSON(http.StatusOK, resultObj)
-}
-
-func (cfg *apiConfig) GetObjByLib(c *gin.Context) {
-	//get user token
-	token, err := auth.GetBearerToken(c.Request.Header)
-	if err != nil {
-		log.Printf("error getting bearer token: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid token",
-		})
-		return
-	}
-
-	//validate user token
-	_, err = auth.ValidateJWT(token, cfg.secret)
-	if err != nil {
-		log.Printf("error validating token: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
-		return
-	}
-
-	//get lib name input and clean it
-	libName := c.Param("lib")
-	libName = strings.ToLower(strings.TrimSpace(libName))
-
-	objs, err := cfg.dbQueries.GetObjByLib(c.Request.Context(), libName)
-	if err != nil {
-		log.Printf("error getting mimix objects by lib: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "could not get mimix objects",
-		})
-		return
-	}
-
-	var resultObjs []MimixObj
-	for _, obj := range objs {
-		resultObj := MimixObj{
-			ID:          obj.ID,
-			Obj:         obj.Obj,
-			ObjType:     obj.ObjType,
-			PromoteDate: NullTimeToTime(obj.PromoteDate),
-			Lib:         obj.Lib,
-			ObjVer:      obj.ObjVer,
-			MimixStatus: string(obj.MimixStatus),
-			Developer:   obj.Developer,
-			Keterangan:  NullStringToString(obj.Keterangan),
-		}
-		resultObjs = append(resultObjs, resultObj)
-	}
-
-	c.JSON(http.StatusOK, resultObjs)
-}
 
 func (cfg *apiConfig) RemoveObj(c *gin.Context) {
 	//get user token
@@ -590,14 +491,6 @@ func (cfg *apiConfig) UpdateObjStatus(c *gin.Context) {
 	objName := c.Param("obj")
 	objName = strings.ToLower(strings.TrimSpace(objName))
 
-	_, err = cfg.dbQueries.GetObjByName(c.Request.Context(), objName)
-	if err != nil {
-		log.Printf("error getting mimix object: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "could not get mimix object",
-		})
-		return
-	}
 
 	type parameters struct {
 		MimixStatus string `json:"mimix_status" binding:"required"`
@@ -823,55 +716,7 @@ func (cfg *apiConfig) RemoveMimixObjReq(c *gin.Context) {
 	})
 }
 
-func (cfg *apiConfig) GetObjByDev(c *gin.Context) {
-	//get user token
-	token, err := auth.GetBearerToken(c.Request.Header)
-	if err != nil {
-		log.Printf("error getting bearer token: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid token",
-		})
-		return
-	}
 
-	//validate user token
-	_, err = auth.ValidateJWT(token, cfg.secret)
-	if err != nil {
-		log.Printf("error validating token: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
-		return
-	}
-
-	//get dev name input and clean it
-	devName := c.Param("dev")
-	devName = strings.ToLower(strings.TrimSpace(devName))
-
-	objs, err := cfg.dbQueries.GetObjByDev(c.Request.Context(), devName)
-	if err != nil {
-		log.Printf("error getting mimix objects by dev: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "could not get mimix objects",
-		})
-		return
-	}
-
-	var resultObjs []MimixObj
-	for _, obj := range objs {
-		resultObjs = append(resultObjs, MimixObj{
-			ID:          obj.ID,
-			Obj:         obj.Obj,
-			ObjType:     obj.ObjType,
-			PromoteDate: NullTimeToTime(obj.PromoteDate),
-			Lib:         obj.Lib,
-			ObjVer:      obj.ObjVer,
-			MimixStatus: string(obj.MimixStatus),
-			Developer:   obj.Developer,
-		})
-	}
-	c.JSON(http.StatusOK, resultObjs)
-}
 
 func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
 	//get user token
