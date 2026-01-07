@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iMimix - Create Account</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Add specific styles for register page dropdown if separate */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="login-card">
+            <div class="header">
+                <h1 class="logo">iMimix</h1>
+                <p class="subtitle">Join our community</p>
+            </div>
+
+            <form id="registerForm">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+
+                <div class="input-group">
+                    <label for="job">Job Role</label>
+                    <select id="job" name="job" required
+                        style="width: 100%; padding: 0.875rem 1rem; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; color: var(--text-color); font-size: 1rem; outline: none; transition: all 0.3s ease;">
+                        <option value="" disabled selected>Select your role</option>
+                        <option value="user">User</option>
+                        <option value="cmt">CMT</option>
+                        <option value="dev">Dev</option>
+                        <option value="dc">DC</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="new-password">
+                </div>
+
+                <div class="input-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required
+                        autocomplete="new-password">
+                </div>
+
+                <div id="error-msg"></div>
+
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='index.html'">Back to
+                        Log In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="register.js"></script>
+</body>
+
+</html>

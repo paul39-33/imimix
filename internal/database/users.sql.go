@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const checkUserExists = `-- name: CheckUserExists :one
+SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(username) = LOWER($1))
+`
+
+func (q *Queries) CheckUserExists(ctx context.Context, lower string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkUserExists, lower)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, hashed_password, job)
 VALUES ($1, $2, $3)
@@ -73,7 +84,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow
 const getUserByUsername = `-- name: GetUserByUsername :one
 SELECT id, username, job, hashed_password, created_at, updated_at
 FROM users
-WHERE username = $1
+WHERE LOWER(username) = LOWER($1)
 `
 
 type GetUserByUsernameRow struct {
@@ -85,8 +96,8 @@ type GetUserByUsernameRow struct {
 	UpdatedAt      time.Time
 }
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+func (q *Queries) GetUserByUsername(ctx context.Context, lower string) (GetUserByUsernameRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, lower)
 	var i GetUserByUsernameRow
 	err := row.Scan(
 		&i.ID,
@@ -102,11 +113,11 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 const userLogin = `-- name: UserLogin :one
 SELECT id, username, created_at, updated_at, hashed_password, job
 FROM users
-WHERE username = $1
+WHERE LOWER(username) = LOWER($1)
 `
 
-func (q *Queries) UserLogin(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRowContext(ctx, userLogin, username)
+func (q *Queries) UserLogin(ctx context.Context, lower string) (User, error) {
+	row := q.db.QueryRowContext(ctx, userLogin, lower)
 	var i User
 	err := row.Scan(
 		&i.ID,

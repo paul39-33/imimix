@@ -62,3 +62,11 @@ SET obj_name = $2,
     req_status = $9
 WHERE id = $1
 RETURNING id, obj_name, requester, req_status, lib, obj_ver, obj_type, promote_date, developer, created_at, updated_at, promote_status;
+
+-- name: SearchMimixObjReq :many
+SELECT * FROM mimix_obj_req
+WHERE
+    obj_name ILIKE '%' || $1 || '%'
+ OR requester ILIKE '%' || $1 || '%'
+ OR developer ILIKE '%' || $1 || '%'
+ OR lib ILIKE '%' || $1 || '%';

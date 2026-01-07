@@ -146,9 +146,10 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 func (cfg *apiConfig) CreateUser(c *gin.Context) {
 	type parameters struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-		Job      string `json:"job" binding:"required"`
+		Username        string `json:"username" binding:"required"`
+		Password        string `json:"password" binding:"required"`
+		ConfirmPassword string `json:"confirm_password" binding:"required"`
+		Job             string `json:"job" binding:"required"`
 	}
 
 	var params parameters
@@ -157,13 +158,32 @@ func (cfg *apiConfig) CreateUser(c *gin.Context) {
 		return
 	}
 
+	if params.Password != params.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "passwords do not match"})
+		return
+	}
+
 	// normalize job string
 	jobStr := strings.ToLower(strings.TrimSpace(params.Job))
+	// normalize username
+	params.Username = strings.ToLower(strings.TrimSpace(params.Username))
 
 	// allowed enum values (replace/add values if your DB enum has more)
 	job, ok := allowedUserJobs[jobStr]
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job type"})
+		return
+	}
+
+	// check if user already exists
+	exists, err := cfg.dbQueries.CheckUserExists(c.Request.Context(), params.Username)
+	if err != nil {
+		log.Printf("error checking if user exists: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not check user existence"})
+		return
+	}
+	if exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
 		return
 	}
 
@@ -174,7 +194,6 @@ func (cfg *apiConfig) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create user"})
 		return
 	}
-
 	// Create user in the database
 	user, err := cfg.dbQueries.CreateUser(c.Request.Context(), database.CreateUserParams{
 		Username:       params.Username,
@@ -197,6 +216,10 @@ func (cfg *apiConfig) UserLogin(c *gin.Context) {
 		return
 	}
 
+
+	// normalize username
+	input.Username = strings.ToLower(strings.TrimSpace(input.Username))
+
 	user, err := cfg.dbQueries.GetUserByUsername(c.Request.Context(), input.Username)
 	if err != nil {
 		log.Printf("error getting user by username: %v", err)
@@ -206,7 +229,7 @@ func (cfg *apiConfig) UserLogin(c *gin.Context) {
 
 	//check password
 	if !auth.CheckPasswordHash(input.Pass, user.HashedPassword) {
-		log.Printf("error checking password hash: %v", err)
+		log.Printf("Password verification failed for user: %s", input.Username)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
@@ -997,18 +1020,25 @@ func (cfg *apiConfig) ObjReqToObj(c *gin.Context) {
 	}
 
 	//check if obj req already exists as obj
+	var sourceObj database.MimixObj
+	var objExists bool
+
 	if objReq.SourceObjID.Valid {
 		sourceObjID := objReq.SourceObjID.UUID
-
-		sourceObj, err := cfg.dbQueries.GetObjByID(c.Request.Context(), sourceObjID)
-		if err != nil {
+		var err error
+		sourceObj, err = cfg.dbQueries.GetObjByID(c.Request.Context(), sourceObjID)
+		if err == nil {
+			objExists = true
+		} else if !errors.Is(err, sql.ErrNoRows) {
 			log.Printf("error getting mimix object by source obj id: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "could not get mimix object",
 			})
 			return
 		}
+	}
 
+	if objExists {
 		//change obj mimix status to "completed"
 		err = cfg.dbQueries.UpdateObjStatus(c.Request.Context(), database.UpdateObjStatusParams{
 			Obj:         sourceObj.Obj,
@@ -1027,7 +1057,9 @@ func (cfg *apiConfig) ObjReqToObj(c *gin.Context) {
 			"obj_id":  sourceObj.ID,
 		})
 		return
-	} else {
+	}
+
+	{
 		//check if new obj lib exists (create if not)
 		var libID uuid.UUID
 		libRow, err := cfg.dbQueries.GetMimixLibByName(c.Request.Context(), objReq.Lib)
@@ -1149,14 +1181,7 @@ func (cfg *apiConfig) UpdateObjReqInfo(c *gin.Context) {
 		return
 	}
 
-	//bind json parameters
-	if err = c.ShouldBindJSON(&params); err != nil {
-		log.Printf("error binding json: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid parameters",
-		})
-		return
-	}
+
 
 	// prepare developer as sql.NullString
 	devNull := sql.NullString{
@@ -1240,7 +1265,7 @@ func (cfg *apiConfig) SearchObj(c *gin.Context) {
 	query = strings.ToLower(strings.TrimSpace(query))
 	search := sql.NullString{
 		String: query,
-		Valid:  query != "",
+		Valid:  true,
 	}
 
 	// search objs by obj / lib / developer
@@ -1272,4 +1297,91 @@ func (cfg *apiConfig) SearchObj(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resultObjs)
+}
+
+type MimixObjReq struct {
+	ID            uuid.UUID `json:"id"`
+	ObjName       string    `json:"obj_name"`
+	Requester     string    `json:"requester"`
+	ReqStatus     string    `json:"req_status"`
+	Lib           string    `json:"lib"`
+	ObjVer        string    `json:"obj_ver"`
+	ObjType       string    `json:"obj_type"`
+	PromoteDate   time.Time `json:"promote_date"`
+	Developer     string    `json:"developer"`
+	PromoteStatus string    `json:"promote_status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (cfg *apiConfig) SearchObjReq(c *gin.Context) {
+	// get user token
+	token, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		log.Printf("error getting bearer token: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid token",
+		})
+		return
+	}
+
+	// validate user token
+	_, err = auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("error validating token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	// get search input and clean it
+	query := c.Param("query")
+	query = strings.ToLower(strings.TrimSpace(query))
+	search := sql.NullString{
+		String: query,
+		Valid:  true,
+	}
+
+	// search obj requests
+	reqs, err := cfg.dbQueries.SearchMimixObjReq(
+		c.Request.Context(),
+		search,
+	)
+	if err != nil {
+		log.Printf("error searching mimix object requests: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "could not search mimix object requests",
+		})
+		return
+	}
+
+	// map DB models → API models
+	var resultReqs []MimixObjReq
+	for _, req := range reqs {
+		// handle nullable promote_status
+		var ps string
+		if req.PromoteStatus.Valid {
+			ps = string(req.PromoteStatus.PromoteStatus)
+		} else {
+			ps = ""
+		}
+
+		resultReqs = append(resultReqs, MimixObjReq{
+			ID:            req.ID,
+			ObjName:       req.ObjName,
+			Requester:     req.Requester,
+			ReqStatus:     string(req.ReqStatus),
+			Lib:           req.Lib,
+			ObjVer:        req.ObjVer,
+			ObjType:       req.ObjType,
+			PromoteDate:   req.PromoteDate,
+			Developer:     NullStringToString(req.Developer),
+			PromoteStatus: ps,
+			CreatedAt:     req.CreatedAt,
+			UpdatedAt:     req.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, resultReqs)
 }

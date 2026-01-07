@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iMimix - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Dashboard specific styles */
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem 4rem 1.5rem;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .header-bar .logo {
+            margin-bottom: 0;
+            font-size: 2.5rem;
+        }
+
+        .user-info {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.125rem;
+            font-weight: 500;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-color);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        /* Controls Area */
+        .controls-area {
+            display: flex;
+            justify-content: space-between;
+            /* Search centered, Add New on right? Or Search Centered as requested */
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+
+        /* Centered Search per request */
+        .search-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.75rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            color: var(--text-color);
+            font-family: inherit;
+        }
+
+        .search-btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Table */
+        .table-container {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 1rem 3rem;
+            /* Increased spacing */
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.6);
+            font-weight: 600;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 4rem;
+            /* Explicit bottom spacing */
+        }
+
+        .page-btn {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-temp {
+            background: rgba(234, 179, 8, 0.2);
+            color: #facc15;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            width: 2.5rem;
+            /* Increased size */
+            height: 2.5rem;
+            /* Increased size */
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-size: 1.1rem;
+            /* Increased icon size */
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .action-btn.delete:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .action-btn.save {
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        /* Edit Inputs */
+        .edit-input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            width: 100%;
+        }
+
+        /* Yellow */
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: var(--surface-color);
+            margin: 10% auto;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            width: 50%;
+            max-width: 500px;
+            border-radius: 1rem;
+            color: var(--text-color);
+        }
+
+        .close-modal {
+            color: var(--text-muted);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal:hover,
+        .close-modal:focus {
+            color: var(--text-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            color: var(--text-color);
+            font-family: inherit;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <header class="header-bar">
+            <h1 class="logo">iMimix</h1>
+            <div class="user-info">
+                <span id="user-display">User</span>
+                <button class="btn logout-btn" id="logoutBtn">Log Out</button>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('objects')">Mimix Object</button>
+            <button class="tab-btn" onclick="switchTab('requests')">Mimix Request</button>
+        </div>
+
+        <div id="objects-tab" class="tab-content active">
+            <div class="controls-area">
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="search-input"
+                        placeholder="Insert object/dev/library name">
+                    <button class="search-btn" id="searchBtn">Search</button>
+                </div>
+                <button class="btn btn-primary" id="addObjBtn">Add Mimix Object</button>
+            </div>
+
+            <div class="table-container">
+                <table id="objectsTable">
+                    <thead>
+                        <tr>
+                            <th>Object Name</th>
+                            <th>Type</th>
+                            <th>Promote Date</th>
+                            <th>Library</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th>Developer</th>
+                            <th>Keterangan</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="paginationControls">
+                <!-- Pagination buttons will be injected here -->
+            </div>
+        </div>
+
+        <div id="requests-tab" class="tab-content">
+            <div class="controls-area">
+                <div class="search-container">
+                    <input type="text" id="reqSearchInput" class="search-input"
+                        placeholder="Search requests by object/requester/dev...">
+                    <button class="search-btn" id="reqSearchBtn">Search</button>
+                </div>
+                <button class="btn btn-primary" id="addReqBtn">Submit New Request</button>
+            </div>
+
+            <div class="table-container">
+                <table id="requestsTable">
+                    <thead>
+                        <tr>
+                            <th>Object Name</th>
+                            <th>Requester</th>
+                            <th>Updated At</th>
+                            <th>Library</th>
+                            <th>Version</th>
+                            <th>Type</th>
+                            <th>Promote Date</th>
+                            <th>Developer</th>
+                            <th>Promote Status</th>
+                            <th>Request Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reqTableBody">
+                        <!-- Rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="reqPaginationControls"></div>
+        </div>
+
+    </div>
+
+    <!-- Add Request Modal -->
+    <div id="add-req-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 style="margin-bottom: 1.5rem;">Add New Request</h2>
+            <form id="add-req-form">
+                <div class="form-group">
+                    <label for="req-obj-name">Object Name</label>
+                    <input type="text" id="req-obj-name" name="obj_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="req-lib">Library</label>
+                    <input type="text" id="req-lib" name="lib" required>
+                </div>
+                <div class="form-group">
+                    <label for="req-obj-ver">Version</label>
+                    <input type="text" id="req-obj-ver" name="obj_ver">
+                </div>
+                <div class="form-group">
+                    <label for="req-obj-type">Type</label>
+                    <input type="text" id="req-obj-type" name="obj_type" placeholder="e.g. RPGLE, PF, LF...">
+                </div>
+                <div class="form-group">
+                    <label for="req-promote-date">Promote Date</label>
+                    <input type="text" id="req-promote-date" name="promote_date" placeholder="dd/mm/yyyy">
+                </div>
+                <div class="form-group">
+                    <label for="req-developer">Developer</label>
+                    <input type="text" id="req-developer" name="developer">
+                </div>
+                <button type="submit" class="submit-btn" style="color: white">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="add-obj-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 style="margin-bottom: 1.5rem;">Add Mimix Object</h2>
+            <form id="add-obj-form">
+                <div class="form-group">
+                    <label for="obj-name">Object Name</label>
+                    <input type="text" id="obj-name" name="obj" required>
+                </div>
+                <div class="form-group">
+                    <label for="obj-lib">Library</label>
+                    <input type="text" id="obj-lib" name="lib" required>
+                </div>
+                <div class="form-group">
+                    <label for="obj-ver">Version</label>
+                    <input type="text" id="obj-ver" name="obj_ver" required>
+                </div>
+                <div class="form-group">
+                    <label for="obj-type">Type</label>
+                    <input type="text" id="obj-type" name="obj_type" placeholder="e.g. RPGLE, PF, LF..." required>
+                </div>
+                <div class="form-group">
+                    <label for="obj-promote-date">Promote Date</label>
+                    <input type="text" id="obj-promote-date" name="promote_date" placeholder="dd/mm/yyyy">
+                </div>
+                <div class="form-group">
+                    <label for="obj-status">Status</label>
+                    <select id="obj-status" name="mimix_status">
+                        <option value="unset">Unset (Pending)</option>
+                        <option value="daftarkan">Daftarkan</option>
+                        <option value="tidak perlu daftar">Tidak Perlu Daftar</option>
+                        <option value="on progress">On Progress</option>
+                        <option value="done">Done</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="obj-developer">Developer</label>
+                    <input type="text" id="obj-developer" name="developer">
+                </div>
+                <button type="submit" class="submit-btn" style="color: white">Add Object</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>

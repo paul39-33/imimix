@@ -218,6 +218,52 @@ func (q *Queries) RemoveMimixObjReq(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const searchMimixObjReq = `-- name: SearchMimixObjReq :many
+SELECT id, obj_name, requester, created_at, updated_at, lib, obj_ver, obj_type, promote_date, developer, promote_status, source_obj_id, req_status FROM mimix_obj_req
+WHERE
+    obj_name ILIKE '%' || $1 || '%'
+ OR requester ILIKE '%' || $1 || '%'
+ OR developer ILIKE '%' || $1 || '%'
+ OR lib ILIKE '%' || $1 || '%'
+`
+
+func (q *Queries) SearchMimixObjReq(ctx context.Context, dollar_1 sql.NullString) ([]MimixObjReq, error) {
+	rows, err := q.db.QueryContext(ctx, searchMimixObjReq, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MimixObjReq
+	for rows.Next() {
+		var i MimixObjReq
+		if err := rows.Scan(
+			&i.ID,
+			&i.ObjName,
+			&i.Requester,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Lib,
+			&i.ObjVer,
+			&i.ObjType,
+			&i.PromoteDate,
+			&i.Developer,
+			&i.PromoteStatus,
+			&i.SourceObjID,
+			&i.ReqStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateMimixObjReqInfo = `-- name: UpdateMimixObjReqInfo :one
 UPDATE mimix_obj_req
 SET obj_name = $2,

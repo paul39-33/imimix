@@ -36,7 +36,7 @@ func main() {
 	r := gin.Default()
 
 	//set frontend directory by url /app/... from .
-	r.StaticFS("/app", gin.Dir(".", false))
+	r.StaticFS("/app", gin.Dir("./public", false))
 
 	api := r.Group("/api")
 	{
@@ -55,7 +55,10 @@ func main() {
 		api.PATCH("/update_obj_req_info/:id", apiCfg.UpdateObjReqInfo) // handler expects :id
 
 		api.GET("/obj/search/:query", apiCfg.SearchObj)
+		api.GET("/obj/search", apiCfg.SearchObj) // Handle empty search
 
+		api.GET("/obj_req/search/:query", apiCfg.SearchObjReq)
+		api.GET("/obj_req/search", apiCfg.SearchObjReq) // Handle empty search
 	}
 
 	//start server on port 8080
