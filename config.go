@@ -289,8 +289,8 @@ func (cfg *apiConfig) CreateObj(c *gin.Context) {
 		return
 	}
 
-	//check if user job is "cmt" or "dc"
-	if userData.Job != "cmt" && userData.Job != "dc" {
+	//check if user job is "cmt"
+	if userData.Job != "cmt" {
 		log.Printf("user unauthorized job: %v", userData.Job)
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "forbidden: insufficient permissions",
@@ -774,8 +774,8 @@ func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
 		return
 	}
 
-	//check if user job is "cmt" or "dev"
-	if user.Job != "cmt" && user.Job != "dev" {
+	//check if user job is "cmt"
+	if user.Job != "cmt" {
 		log.Printf("user unauthorized job: %v", user.Job)
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "forbidden: insufficient permissions",
@@ -1183,8 +1183,8 @@ func (cfg *apiConfig) UpdateObjReqInfo(c *gin.Context) {
 		return
 	}
 
-	//check if user job is "dev" or "cmt" or "dc"
-	if user.Job != "dev" && user.Job != "cmt" && user.Job != "dc" {
+	//check if user job is "dev" or "cmt"
+	if user.Job != "dev" && user.Job != "cmt" {
 		log.Printf("user unauthorized job: %v", user.Job)
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "forbidden: insufficient permissions",

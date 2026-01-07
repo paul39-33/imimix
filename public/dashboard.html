@@ -199,6 +199,35 @@
 
         /* Status Badge */
         .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .row-pending-inprogress td {
+            background-color: rgba(127, 29, 29, 0.4) !important;
+            /* Dark Red/Maroon */
+        }
+
+        .row-pending-deployed td {
+            background-color: rgba(245, 158, 11, 0.2) !important;
+            /* Amber/Orange */
+        }
+
+        .row-completed-deployed td {
+            background-color: rgba(34, 197, 94, 0.2) !important;
+            /* Light Green */
+        }
+
+        .action-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: all;
+            /* Allow hover for tooltip */
+        }
+
+        .status-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 1rem;
             font-size: 0.75rem;
