@@ -207,6 +207,38 @@ func (q *Queries) GetMimixObjReqByRequester(ctx context.Context, requester strin
 	return items, nil
 }
 
+const getPendingObjReqByNameAndLib = `-- name: GetPendingObjReqByNameAndLib :one
+SELECT id, obj_name, requester, created_at, updated_at, lib, obj_ver, obj_type, promote_date, developer, promote_status, source_obj_id, req_status
+FROM mimix_obj_req
+WHERE obj_name = $1 AND lib = $2 AND req_status = 'pending'
+`
+
+type GetPendingObjReqByNameAndLibParams struct {
+	ObjName string
+	Lib     string
+}
+
+func (q *Queries) GetPendingObjReqByNameAndLib(ctx context.Context, arg GetPendingObjReqByNameAndLibParams) (MimixObjReq, error) {
+	row := q.db.QueryRowContext(ctx, getPendingObjReqByNameAndLib, arg.ObjName, arg.Lib)
+	var i MimixObjReq
+	err := row.Scan(
+		&i.ID,
+		&i.ObjName,
+		&i.Requester,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Lib,
+		&i.ObjVer,
+		&i.ObjType,
+		&i.PromoteDate,
+		&i.Developer,
+		&i.PromoteStatus,
+		&i.SourceObjID,
+		&i.ReqStatus,
+	)
+	return i, err
+}
+
 const removeMimixObjReq = `-- name: RemoveMimixObjReq :exec
 DELETE FROM mimix_obj_req
 WHERE id = $1

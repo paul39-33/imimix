@@ -71,3 +71,8 @@ WHERE
  OR developer ILIKE '%' || $1 || '%'
  OR lib ILIKE '%' || $1 || '%'
 ORDER BY updated_at DESC;
+
+-- name: GetPendingObjReqByNameAndLib :one
+SELECT *
+FROM mimix_obj_req
+WHERE obj_name = $1 AND lib = $2 AND req_status = 'pending';

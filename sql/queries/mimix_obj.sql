@@ -87,3 +87,8 @@ WHERE
  OR lib ILIKE '%' || $1 || '%'
  OR developer ILIKE '%' || $1 || '%'
 ORDER BY updated_at DESC;
+
+-- name: GetObjByNameAndLib :one
+SELECT *
+FROM mimix_obj
+WHERE obj = $1 AND lib = $2;

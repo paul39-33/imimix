@@ -934,6 +934,20 @@ func (cfg *apiConfig) ObjtoObjReq(c *gin.Context) {
 		return
 	}
 
+	// check if pending request exists
+	_, err = cfg.dbQueries.GetPendingObjReqByNameAndLib(c.Request.Context(), database.GetPendingObjReqByNameAndLibParams{
+		ObjName: obj.Obj,
+		Lib:     obj.Lib,
+	})
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Pending request already exists for this object"})
+		return
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("error checking pending requests: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not check pending requests"})
+		return
+	}
+
 	err = cfg.dbQueries.AddObjToObjReq(c.Request.Context(), database.AddObjToObjReqParams{
 		ID:        obj.ID,
 		Requester: user.Username,
@@ -1077,6 +1091,20 @@ func (cfg *apiConfig) ObjReqToObj(c *gin.Context) {
 	}
 
 	{
+		// check if object with same name and lib already exists
+		_, err := cfg.dbQueries.GetObjByNameAndLib(c.Request.Context(), database.GetObjByNameAndLibParams{
+			Obj: objReq.ObjName,
+			Lib: objReq.Lib,
+		})
+		if err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "Object with this name and library already exists"})
+			return
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			log.Printf("error checking existing object: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not check existing object"})
+			return
+		}
+
 		//check if new obj lib exists (create if not)
 		var libID uuid.UUID
 		libRow, err := cfg.dbQueries.GetMimixLibByName(c.Request.Context(), objReq.Lib)

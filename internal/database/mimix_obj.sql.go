@@ -160,6 +160,36 @@ func (q *Queries) GetObjByID(ctx context.Context, id uuid.UUID) (MimixObj, error
 	return i, err
 }
 
+const getObjByNameAndLib = `-- name: GetObjByNameAndLib :one
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan, updated_at
+FROM mimix_obj
+WHERE obj = $1 AND lib = $2
+`
+
+type GetObjByNameAndLibParams struct {
+	Obj string
+	Lib string
+}
+
+func (q *Queries) GetObjByNameAndLib(ctx context.Context, arg GetObjByNameAndLibParams) (MimixObj, error) {
+	row := q.db.QueryRowContext(ctx, getObjByNameAndLib, arg.Obj, arg.Lib)
+	var i MimixObj
+	err := row.Scan(
+		&i.ID,
+		&i.Obj,
+		&i.ObjType,
+		&i.PromoteDate,
+		&i.Lib,
+		&i.LibID,
+		&i.ObjVer,
+		&i.MimixStatus,
+		&i.Developer,
+		&i.Keterangan,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const removeObjByID = `-- name: RemoveObjByID :exec
 DELETE FROM mimix_obj
 WHERE id = $1
