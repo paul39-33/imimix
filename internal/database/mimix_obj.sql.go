@@ -8,14 +8,15 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 const addObj = `-- name: AddObj :one
-INSERT INTO mimix_obj (obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer
+INSERT INTO mimix_obj (obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+RETURNING id, obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer, updated_at
 `
 
 type AddObjParams struct {
@@ -39,6 +40,7 @@ type AddObjRow struct {
 	LibID       uuid.UUID
 	MimixStatus MimixStatus
 	Developer   string
+	UpdatedAt   time.Time
 }
 
 func (q *Queries) AddObj(ctx context.Context, arg AddObjParams) (AddObjRow, error) {
@@ -63,6 +65,7 @@ func (q *Queries) AddObj(ctx context.Context, arg AddObjParams) (AddObjRow, erro
 		&i.LibID,
 		&i.MimixStatus,
 		&i.Developer,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -110,7 +113,7 @@ func (q *Queries) AddObjToObjReq(ctx context.Context, arg AddObjToObjReqParams) 
 
 const completeObjMimixStatus = `-- name: CompleteObjMimixStatus :exec
 UPDATE mimix_obj
-SET mimix_status = 'done'
+SET mimix_status = 'done', updated_at = NOW()
 WHERE id = $1
 `
 
@@ -133,7 +136,7 @@ func (q *Queries) GetMimixStatusByID(ctx context.Context, id uuid.UUID) (MimixSt
 }
 
 const getObjByID = `-- name: GetObjByID :one
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan, updated_at
 FROM mimix_obj
 WHERE id = $1
 `
@@ -152,6 +155,7 @@ func (q *Queries) GetObjByID(ctx context.Context, id uuid.UUID) (MimixObj, error
 		&i.MimixStatus,
 		&i.Developer,
 		&i.Keterangan,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -167,12 +171,13 @@ func (q *Queries) RemoveObjByID(ctx context.Context, id uuid.UUID) error {
 }
 
 const searchMimixObj = `-- name: SearchMimixObj :many
-SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
+SELECT id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan, updated_at
 FROM mimix_obj
 WHERE
     obj ILIKE '%' || $1 || '%'
  OR lib ILIKE '%' || $1 || '%'
  OR developer ILIKE '%' || $1 || '%'
+ORDER BY updated_at DESC
 `
 
 func (q *Queries) SearchMimixObj(ctx context.Context, dollar_1 sql.NullString) ([]MimixObj, error) {
@@ -195,6 +200,7 @@ func (q *Queries) SearchMimixObj(ctx context.Context, dollar_1 sql.NullString) (
 			&i.MimixStatus,
 			&i.Developer,
 			&i.Keterangan,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -211,7 +217,7 @@ func (q *Queries) SearchMimixObj(ctx context.Context, dollar_1 sql.NullString) (
 
 const updateMimixStatus = `-- name: UpdateMimixStatus :exec
 UPDATE mimix_obj
-SET mimix_status = $2
+SET mimix_status = $2, updated_at = NOW()
 WHERE id = $1
 `
 
@@ -235,9 +241,10 @@ SET
     promote_date  = $6,
     mimix_status  = $7,
     developer     = $8,
-    keterangan    = $9
+    keterangan    = $9,
+    updated_at    = NOW()
 WHERE id = $1
-RETURNING id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan
+RETURNING id, obj, obj_type, promote_date, lib, lib_id, obj_ver, mimix_status, developer, keterangan, updated_at
 `
 
 type UpdateObjInfoParams struct {
@@ -276,13 +283,14 @@ func (q *Queries) UpdateObjInfo(ctx context.Context, arg UpdateObjInfoParams) (M
 		&i.MimixStatus,
 		&i.Developer,
 		&i.Keterangan,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const updateObjStatus = `-- name: UpdateObjStatus :exec
 UPDATE mimix_obj
-SET mimix_status = $2
+SET mimix_status = $2, updated_at = NOW()
 WHERE obj = $1
 RETURNING obj, mimix_status
 `

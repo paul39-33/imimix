@@ -41,6 +41,7 @@ type MimixObj struct {
 	MimixStatus string    `json:"mimix_status"`
 	Developer   string    `json:"developer"`
 	Keterangan  string    `json:"keterangan"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type MimixLib struct {
@@ -385,6 +386,7 @@ func (cfg *apiConfig) CreateObj(c *gin.Context) {
 		ObjVer:      obj.ObjVer,
 		MimixStatus: string(obj.MimixStatus),
 		Developer:   obj.Developer,
+		UpdatedAt:   obj.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, createdObj)
@@ -850,9 +852,24 @@ func (cfg *apiConfig) UpdateObjInfo(c *gin.Context) {
 		return
 	}
 
+	// map to api struct
+	respObj := MimixObj{
+		ID:          updatedObj.ID,
+		Obj:         updatedObj.Obj,
+		ObjType:     updatedObj.ObjType,
+		PromoteDate: NullTimeToTime(updatedObj.PromoteDate),
+		Lib:         updatedObj.Lib,
+		LibID:       updatedObj.LibID,
+		ObjVer:      updatedObj.ObjVer,
+		MimixStatus: string(updatedObj.MimixStatus),
+		Developer:   updatedObj.Developer,
+		Keterangan:  NullStringToString(updatedObj.Keterangan),
+		UpdatedAt:   updatedObj.UpdatedAt,
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "obj info updated successfully",
-		"data":    updatedObj,
+		"data":    respObj,
 	})
 }
 
@@ -1293,6 +1310,8 @@ func (cfg *apiConfig) SearchObj(c *gin.Context) {
 			ObjVer:      obj.ObjVer,
 			MimixStatus: string(obj.MimixStatus),
 			Developer:   obj.Developer,
+			Keterangan:  NullStringToString(obj.Keterangan),
+			UpdatedAt:   obj.UpdatedAt,
 		})
 	}
 

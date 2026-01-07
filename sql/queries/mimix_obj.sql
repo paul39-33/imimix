@@ -1,11 +1,11 @@
 -- name: AddObj :one
-INSERT INTO mimix_obj (obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer;
+INSERT INTO mimix_obj (obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+RETURNING id, obj, obj_type, promote_date, obj_ver, lib, lib_id, mimix_status, developer, updated_at;
 
 -- name: UpdateObjStatus :exec
 UPDATE mimix_obj
-SET mimix_status = $2
+SET mimix_status = $2, updated_at = NOW()
 WHERE obj = $1
 RETURNING obj, mimix_status;
 
@@ -51,7 +51,7 @@ WHERE o.id = $1;
 
 -- name: CompleteObjMimixStatus :exec
 UPDATE mimix_obj
-SET mimix_status = 'done'
+SET mimix_status = 'done', updated_at = NOW()
 WHERE id = $1;
 
 -- name: UpdateObjInfo :one
@@ -64,13 +64,14 @@ SET
     promote_date  = $6,
     mimix_status  = $7,
     developer     = $8,
-    keterangan    = $9
+    keterangan    = $9,
+    updated_at    = NOW()
 WHERE id = $1
 RETURNING *;
 
 -- name: UpdateMimixStatus :exec
 UPDATE mimix_obj
-SET mimix_status = $2
+SET mimix_status = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: GetMimixStatusByID :one
@@ -84,4 +85,5 @@ FROM mimix_obj
 WHERE
     obj ILIKE '%' || $1 || '%'
  OR lib ILIKE '%' || $1 || '%'
- OR developer ILIKE '%' || $1 || '%';
+ OR developer ILIKE '%' || $1 || '%'
+ORDER BY updated_at DESC;

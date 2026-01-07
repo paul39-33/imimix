@@ -299,9 +299,11 @@ function renderTable() {
 
         // Format Date (simplified)
         const dateStr = obj.promote_date ? new Date(obj.promote_date).toLocaleDateString() : '-';
+        const updateDate = obj.updated_at ? new Date(obj.updated_at).toLocaleString() : '-';
 
         row.innerHTML = `
             <td style="font-weight: 500; color: white;">${obj.obj}</td>
+            <td>${updateDate}</td>
             <td>${obj.obj_type}</td>
             <td>${dateStr}</td>
             <td>${obj.lib}</td>
@@ -502,6 +504,7 @@ function switchTab(tabName) {
         document.getElementById('objects-tab').classList.add('active');
         const btn = document.querySelector(`button[onclick="switchTab('objects')"]`);
         if (btn) btn.classList.add('active');
+        fetchObjects(); // Fetch data when switching to objects
     } else {
         document.getElementById('requests-tab').classList.add('active');
         const btn = document.querySelector(`button[onclick="switchTab('requests')"]`);
@@ -594,6 +597,7 @@ function editObject(id) {
     // Adjusted to allow editing Name (obj), Type (obj_type), and Promote Date
     row.innerHTML = `
         <td><input class="edit-input" id="edit-obj-${id}" value="${objData.obj}"></td>
+        <td>${objData.updated_at ? new Date(objData.updated_at).toLocaleString() : '-'}</td>
         <td><input class="edit-input" id="edit-type-${id}" value="${objData.obj_type}"></td>
         <td><input class="edit-input" id="edit-date-${id}" value="${formatDateToDDMMYYYY(objData.promote_date)}" placeholder="dd/mm/yyyy"></td>
         
@@ -602,10 +606,11 @@ function editObject(id) {
         
         <td>
              <select class="edit-input" id="edit-status-${id}">
-                <option value="pending" ${objData.mimix_status === 'pending' ? 'selected' : ''}>Pending</option>
+                <option value="unset" ${objData.mimix_status === 'unset' ? 'selected' : ''}>Unset</option>
+                <option value="daftarkan" ${objData.mimix_status === 'daftarkan' ? 'selected' : ''}>Daftarkan</option>
+                <option value="tidak perlu daftar" ${objData.mimix_status === 'tidak perlu daftar' ? 'selected' : ''}>Tidak Perlu Daftar</option>
                 <option value="on progress" ${objData.mimix_status === 'on progress' ? 'selected' : ''}>On Progress</option>
                 <option value="done" ${objData.mimix_status === 'done' ? 'selected' : ''}>Done</option>
-                <option value="error" ${objData.mimix_status === 'error' ? 'selected' : ''}>Error</option>
             </select>
         </td>
         

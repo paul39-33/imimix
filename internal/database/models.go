@@ -202,6 +202,7 @@ type MimixObj struct {
 	MimixStatus MimixStatus
 	Developer   string
 	Keterangan  sql.NullString
+	UpdatedAt   time.Time
 }
 
 type MimixObjReq struct {

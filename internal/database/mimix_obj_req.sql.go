@@ -225,6 +225,7 @@ WHERE
  OR requester ILIKE '%' || $1 || '%'
  OR developer ILIKE '%' || $1 || '%'
  OR lib ILIKE '%' || $1 || '%'
+ORDER BY updated_at DESC
 `
 
 func (q *Queries) SearchMimixObjReq(ctx context.Context, dollar_1 sql.NullString) ([]MimixObjReq, error) {
